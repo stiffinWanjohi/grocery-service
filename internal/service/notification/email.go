@@ -6,23 +6,15 @@ import (
 	"net/smtp"
 	"time"
 
+	"github.com/grocery-service/internal/config"
 	"github.com/grocery-service/internal/domain"
 )
 
-type EmailConfig struct {
-	SMTPHost     string
-	SMTPPort     int
-	SMTPUsername string
-	SMTPPassword string
-	FromEmail    string
-	FromName     string
-}
-
 type EmailService struct {
-	config EmailConfig
+	config config.SMTPConfig
 }
 
-func NewEmailService(config EmailConfig) *EmailService {
+func NewEmailService(config config.SMTPConfig) *EmailService {
 	return &EmailService{
 		config: config,
 	}
@@ -41,13 +33,12 @@ func (s *EmailService) SendOrderStatusUpdate(ctx context.Context, order *domain.
 }
 
 func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) error {
-	// Add timeout to context
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	done := make(chan error, 1)
 	go func() {
-		auth := smtp.PlainAuth("", s.config.SMTPUsername, s.config.SMTPPassword, s.config.SMTPHost)
+		auth := smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host)
 
 		msg := fmt.Sprintf("From: %s <%s>\r\n"+
 			"To: %s\r\n"+
@@ -55,10 +46,10 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) 
 			"MIME-Version: 1.0\r\n"+
 			"Content-Type: text/html; charset=UTF-8\r\n"+
 			"\r\n"+
-			"%s\r\n", s.config.FromName, s.config.FromEmail, to, subject, body)
+			"%s\r\n", s.config.FromName, s.config.From, to, subject, body)
 
-		addr := fmt.Sprintf("%s:%d", s.config.SMTPHost, s.config.SMTPPort)
-		done <- smtp.SendMail(addr, auth, s.config.FromEmail, []string{to}, []byte(msg))
+		addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+		done <- smtp.SendMail(addr, auth, s.config.From, []string{to}, []byte(msg))
 	}()
 
 	select {

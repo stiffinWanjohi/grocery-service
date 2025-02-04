@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -17,43 +18,45 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port    int
-	BaseURL string
+	Port    int    `env:"SERVER_PORT" default:"8080"`
+	BaseURL string `env:"SERVER_BASE_URL" default:"http://localhost:8080"`
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Name     string
-	SSLMode  string
+	Host     string `env:"DB_HOST" default:"localhost"`
+	Port     int    `env:"DB_PORT" default:"5432"`
+	User     string `env:"DB_USER" default:"postgres"`
+	Password string `env:"DB_PASSWORD" required:"true"`
+	Name     string `env:"DB_NAME" default:"grocery_db"`
+	SSLMode  string `env:"DB_SSLMODE" default:"disable"`
 }
 
 type JWTConfig struct {
-	Secret string
-	Issuer string
+	Secret string `env:"JWT_SECRET" required:"true"`
+	Issuer string `env:"JWT_ISSUER" default:"grocery-service"`
 }
 
 type SMTPConfig struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	From     string
-	FromName string
+	Host     string `env:"SMTP_HOST" default:"smtp.gmail.com"`
+	Port     int    `env:"SMTP_PORT" default:"587"`
+	Username string `env:"SMTP_USERNAME" required:"true"`
+	Password string `env:"SMTP_PASSWORD" required:"true"`
+	From     string `env:"SMTP_FROM" required:"true"`
+	FromName string `env:"SMTP_FROM_NAME" default:"Grocery Service"`
 }
 
 type SMSConfig struct {
-	APIKey      string
-	Username    string
-	SenderID    string
-	Environment string
+	APIKey      string `env:"SMS_API_KEY" required:"true"`
+	Username    string `env:"SMS_USERNAME" required:"true"`
+	SenderID    string `env:"SMS_SENDER_ID" default:"GROCERY"`
+	Environment string `env:"SMS_ENVIRONMENT" default:"sandbox"`
 }
 
 func Load() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
-		fmt.Printf("Warning: .env file not found: %v\n", err)
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("error loading .env file: %w", err)
+		}
 	}
 
 	config := &Config{
@@ -66,11 +69,11 @@ func Load() (*Config, error) {
 			Port:     getEnvAsInt("DB_PORT", 5432),
 			User:     getEnv("DB_USER", "postgres"),
 			Password: getEnv("DB_PASSWORD", ""),
-			Name:     getEnv("DB_NAME", "grocery"),
+			Name:     getEnv("DB_NAME", "grocery_db"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", "your-secret-key"),
+			Secret: getEnv("JWT_SECRET", ""),
 			Issuer: getEnv("JWT_ISSUER", "grocery-service"),
 		},
 		SMTP: SMTPConfig{
@@ -78,7 +81,7 @@ func Load() (*Config, error) {
 			Port:     getEnvAsInt("SMTP_PORT", 587),
 			Username: getEnv("SMTP_USERNAME", ""),
 			Password: getEnv("SMTP_PASSWORD", ""),
-			From:     getEnv("SMTP_FROM", "noreply@grocery.com"),
+			From:     getEnv("SMTP_FROM", ""),
 			FromName: getEnv("SMTP_FROM_NAME", "Grocery Service"),
 		},
 		SMS: SMSConfig{
@@ -97,26 +100,53 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if c.JWT.Secret == "" {
-		return fmt.Errorf("JWT secret is required")
+	var errors []string
+
+	// Database validation
+	if c.Database.Password == "" {
+		errors = append(errors, "database password is required")
 	}
 
-	if c.Database.Password == "" {
-		return fmt.Errorf("database password is required")
+	// JWT validation
+	if c.JWT.Secret == "" {
+		errors = append(errors, "JWT secret is required")
+	}
+
+	// SMTP validation
+	if c.SMTP.Username == "" {
+		errors = append(errors, "SMTP username is required")
+	}
+	if c.SMTP.Password == "" {
+		errors = append(errors, "SMTP password is required")
+	}
+	if c.SMTP.From == "" {
+		errors = append(errors, "SMTP from email is required")
+	}
+
+	// SMS validation
+	if c.SMS.APIKey == "" {
+		errors = append(errors, "SMS API key is required")
+	}
+	if c.SMS.Username == "" {
+		errors = append(errors, "SMS username is required")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("configuration validation failed:\n- %s", strings.Join(errors, "\n- "))
 	}
 
 	return nil
 }
 
 func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
 		return value
 	}
 	return defaultValue
 }
 
 func getEnvAsInt(key string, defaultValue int) int {
-	if value, exists := os.LookupEnv(key); exists {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			return intValue
 		}

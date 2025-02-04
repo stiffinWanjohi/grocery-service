@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/grocery-service/internal/domain"
+	"github.com/grocery-service/internal/utils"
 )
 
 type NotificationService interface {
@@ -11,7 +12,6 @@ type NotificationService interface {
 	SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error
 }
 
-// CompositeNotificationService allows sending notifications through multiple channels
 type CompositeNotificationService struct {
 	services []NotificationService
 }
@@ -21,21 +21,25 @@ func NewCompositeNotificationService(services ...NotificationService) Notificati
 }
 
 func (s *CompositeNotificationService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
+	var lastError error
 	for _, service := range s.services {
 		if err := service.SendOrderConfirmation(ctx, order); err != nil {
-			// Log error but continue with other services
-			continue
+			lastError = utils.LogError(err,
+				"Failed to send order confirmation",
+				utils.ErrCodeEmailSendFailed).Error
 		}
 	}
-	return nil
+	return lastError
 }
 
 func (s *CompositeNotificationService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
+	var lastError error
 	for _, service := range s.services {
 		if err := service.SendOrderStatusUpdate(ctx, order); err != nil {
-			// Log error but continue with other services
-			continue
+			lastError = utils.LogError(err,
+				"Failed to send status update",
+				utils.ErrCodeEmailSendFailed).Error
 		}
 	}
-	return nil
+	return lastError
 }
