@@ -4,64 +4,109 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/grocery-service/internal/domain"
-	"github.com/grocery-service/internal/repository"
+	repository "github.com/grocery-service/internal/repository/postgres"
+	customErrors "github.com/grocery-service/utils/errors"
 )
 
-type ProductService struct {
-	repo repository.ProductRepository
-}
-
-func NewProductService(repo repository.ProductRepository) *ProductService {
-	return &ProductService{repo: repo}
-}
-
-func (s *ProductService) Create(ctx context.Context, product *domain.Product) error {
-	if err := s.validateProduct(product); err != nil {
-		return fmt.Errorf("invalid product: %w", err)
+type (
+	ProductService interface {
+		Create(ctx context.Context, product *domain.Product) error
+		GetByID(ctx context.Context, id string) (*domain.Product, error)
+		List(ctx context.Context) ([]domain.Product, error)
+		ListByCategoryID(ctx context.Context, categoryID string) ([]domain.Product, error)
+		Update(ctx context.Context, product *domain.Product) error
+		Delete(ctx context.Context, id string) error
+		UpdateStock(ctx context.Context, id string, quantity int) error
 	}
+
+	ProductServiceImpl struct {
+		repo         repository.ProductRepository
+		categoryRepo repository.CategoryRepository
+	}
+)
+
+func NewProductService(
+	repo repository.ProductRepository,
+	categoryRepo repository.CategoryRepository,
+) ProductService {
+	return &ProductServiceImpl{
+		repo:         repo,
+		categoryRepo: categoryRepo,
+	}
+}
+
+func (s *ProductServiceImpl) Create(ctx context.Context, product *domain.Product) error {
+	if err := product.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", customErrors.ErrInvalidProductData, err)
+	}
+
+	if product.CategoryID != uuid.Nil {
+		if _, err := s.categoryRepo.GetByID(ctx, product.CategoryID.String()); err != nil {
+			return fmt.Errorf("invalid category: %w", err)
+		}
+	}
+
 	return s.repo.Create(ctx, product)
 }
 
-func (s *ProductService) GetByID(ctx context.Context, id string) (*domain.Product, error) {
+func (s *ProductServiceImpl) GetByID(ctx context.Context, id string) (*domain.Product, error) {
+	if id == "" {
+		return nil, fmt.Errorf("%w: product ID is required", customErrors.ErrInvalidProductData)
+	}
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *ProductService) List(ctx context.Context) ([]domain.Product, error) {
+func (s *ProductServiceImpl) List(ctx context.Context) ([]domain.Product, error) {
 	return s.repo.List(ctx)
 }
 
-func (s *ProductService) ListByCategoryID(ctx context.Context, categoryID string) ([]domain.Product, error) {
+func (s *ProductServiceImpl) ListByCategoryID(ctx context.Context, categoryID string) ([]domain.Product, error) {
+	if categoryID == "" {
+		return nil, fmt.Errorf("%w: category ID is required", customErrors.ErrInvalidProductData)
+	}
 	return s.repo.ListByCategoryID(ctx, categoryID)
 }
 
-func (s *ProductService) Update(ctx context.Context, product *domain.Product) error {
-	if err := s.validateProduct(product); err != nil {
-		return fmt.Errorf("invalid product: %w", err)
+func (s *ProductServiceImpl) Update(ctx context.Context, product *domain.Product) error {
+	if err := product.Validate(); err != nil {
+		return fmt.Errorf("%w: %v", customErrors.ErrInvalidProductData, err)
 	}
+
+	existingProduct, err := s.repo.GetByID(ctx, product.ID.String())
+	if err != nil {
+		return fmt.Errorf("failed to get existing product: %w", err)
+	}
+
+	if product.CategoryID != existingProduct.CategoryID && product.CategoryID != uuid.Nil {
+		if _, err := s.categoryRepo.GetByID(ctx, product.CategoryID.String()); err != nil {
+			return fmt.Errorf("invalid category: %w", err)
+		}
+	}
+
 	return s.repo.Update(ctx, product)
 }
 
-func (s *ProductService) Delete(ctx context.Context, id string) error {
+func (s *ProductServiceImpl) Delete(ctx context.Context, id string) error {
+	if id == "" {
+		return fmt.Errorf("%w: product ID is required", customErrors.ErrInvalidProductData)
+	}
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *ProductService) UpdateStock(ctx context.Context, id string, quantity int) error {
-	if quantity < 0 {
-		return fmt.Errorf("quantity cannot be negative")
+func (s *ProductServiceImpl) UpdateStock(ctx context.Context, id string, quantity int) error {
+	if id == "" {
+		return fmt.Errorf("%w: product ID is required", customErrors.ErrInvalidProductData)
 	}
-	return s.repo.UpdateStock(ctx, id, quantity)
-}
 
-func (s *ProductService) validateProduct(product *domain.Product) error {
-	if product.Name == "" {
-		return fmt.Errorf("product name is required")
+	if quantity < 0 {
+		return fmt.Errorf("%w: stock quantity cannot be negative", customErrors.ErrInvalidProductData)
 	}
-	if product.Price <= 0 {
-		return fmt.Errorf("product price must be greater than zero")
+
+	if _, err := s.repo.GetByID(ctx, id); err != nil {
+		return fmt.Errorf("failed to get product: %w", err)
 	}
-	if product.Stock < 0 {
-		return fmt.Errorf("product stock cannot be negative")
-	}
-	return nil
+
+	return s.repo.UpdateStock(ctx, id, quantity)
 }

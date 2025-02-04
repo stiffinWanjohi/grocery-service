@@ -50,6 +50,7 @@ type SMSConfig struct {
 	Username    string `env:"SMS_USERNAME" required:"true"`
 	SenderID    string `env:"SMS_SENDER_ID" default:"GROCERY"`
 	Environment string `env:"SMS_ENVIRONMENT" default:"sandbox"`
+	BaseURL     string `env:"SMS_BASE_URL" default:"https://api.africastalking.com/version1/messaging"`
 }
 
 func Load() (*Config, error) {
@@ -89,6 +90,7 @@ func Load() (*Config, error) {
 			Username:    getEnv("SMS_USERNAME", ""),
 			SenderID:    getEnv("SMS_SENDER_ID", "GROCERY"),
 			Environment: getEnv("SMS_ENVIRONMENT", "sandbox"),
+			BaseURL:     getEnv("SMS_BASE_URL", "https://api.africastalking.com/version1/messaging"),
 		},
 	}
 

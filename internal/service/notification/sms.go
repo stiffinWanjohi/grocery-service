@@ -1,92 +1,89 @@
 package notification
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/grocery-service/internal/config"
 	"github.com/grocery-service/internal/domain"
 	"github.com/grocery-service/utils/errors"
-	at "github.com/kamikazechaser/africastalking/v2"
 )
 
 type SMSService struct {
 	config config.SMSConfig
-	client *at.AfricasTalking
+	client *http.Client
 }
 
-func NewSMSService(config config.SMSConfig) (*SMSService, error) {
-	client := at.Initialize(config.Username, config.APIKey)
-	if client == nil {
-		return nil, errors.WrapError(fmt.Errorf("client initialization failed"), "failed to initialize SMS service")
-	}
-
-	if config.Environment == "sandbox" {
-		client.SetEnvironment(at.Sandbox)
-	} else {
-		client.SetEnvironment(at.Production)
-	}
-
+func NewSMSService(config config.SMSConfig) *SMSService {
 	return &SMSService{
 		config: config,
-		client: client,
-	}, nil
+		client: &http.Client{Timeout: 10 * time.Second},
+	}
 }
 
 func (s *SMSService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
-	message := fmt.Sprintf("Order #%s confirmed. Total: %.2f. Thank you for your order!",
-		order.ID, order.TotalPrice)
-	if err := s.sendSMS(ctx, order.Customer.Phone, message); err != nil {
-		return errors.LogError(err, "Failed to send order confirmation SMS", errors.ErrCodeSMSSendFailed).Error
-	}
-	return nil
+	message := fmt.Sprintf("Order #%s confirmed. Total: %.2f. Thank you for your order!", order.ID, order.TotalPrice)
+	return s.sendSMS(ctx, order.Customer.Phone, message)
 }
 
 func (s *SMSService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
-	message := fmt.Sprintf("Order #%s status updated to: %s",
-		order.ID, order.Status)
-	if err := s.sendSMS(ctx, order.Customer.Phone, message); err != nil {
-		return errors.LogError(err, "Failed to send order status update SMS", errors.ErrCodeSMSSendFailed).Error
-	}
-	return nil
+	message := fmt.Sprintf("Order #%s status updated to: %s", order.ID, order.Status)
+	return s.sendSMS(ctx, order.Customer.Phone, message)
 }
 
 func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	done := make(chan error, 1)
-	go func() {
-		response, err := s.client.SMS().Send(&at.SendSMSInput{
-			To:      []string{phone},
-			Message: message,
-			From:    s.config.SenderID,
-		})
-
-		if err != nil {
-			done <- errors.WrapError(err, "failed to send SMS")
-			return
-		}
-
-		if len(response.Recipients) == 0 {
-			done <- fmt.Errorf("SMS not delivered: no recipients")
-			return
-		}
-
-		recipient := response.Recipients[0]
-		if recipient.Status != "Success" {
-			done <- fmt.Errorf("SMS delivery failed: %s", recipient.StatusReason)
-			return
-		}
-
-		done <- nil
-	}()
-
-	select {
-	case <-ctx.Done():
-		return errors.WrapError(ctx.Err(), "SMS sending timeout")
-	case err := <-done:
-		return err
+	payload := map[string]string{
+		"username": s.config.Username,
+		"to":       phone,
+		"message":  message,
+		"from":     s.config.SenderID,
 	}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return errors.WrapError(err, "failed to marshal SMS payload")
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", s.config.BaseURL, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return errors.WrapError(err, "failed to create SMS request")
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apiKey", s.config.APIKey)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return errors.WrapError(err, "failed to send SMS request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to send SMS: received status %s", resp.Status)
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return errors.WrapError(err, "failed to decode SMS response")
+	}
+
+	smsData, ok := response["SMSMessageData"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid SMS response structure")
+	}
+
+	recipients, ok := smsData["Recipients"].([]interface{})
+	if !ok || len(recipients) == 0 {
+		return fmt.Errorf("SMS not delivered: no recipients")
+	}
+
+	firstRecipient := recipients[0].(map[string]interface{})
+	if firstRecipient["status"] != "Success" {
+		return fmt.Errorf("SMS delivery failed: %s", firstRecipient["status"])
+	}
+
+	return nil
 }

@@ -41,47 +41,85 @@ func main() {
 	orderRepo := postgres.NewOrderRepository(database)
 
 	// Initialize notification service
-	smsService, err := notification.NewSMSService(cfg.SMS)
-	if err != nil {
-		log.Fatalf("Failed to initialize SMS service: %v", err)
-	}
+	notificationService := initializeNotificationService(cfg)
 
 	// Initialize services
 	customerService := service.NewCustomerService(customerRepo)
-	productService := service.NewProductService(productRepo)
+	productService := service.NewProductService(productRepo, categoryRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
-	orderService := service.NewOrderService(orderRepo, productRepo, customerRepo, smsService, database.DB)
+	orderService := service.NewOrderService(
+		orderRepo,
+		productRepo,
+		customerRepo,
+		notificationService,
+	)
 
-	// Initialize handlers
-	customerHandler := handler.NewCustomerHandler(customerService)
-	productHandler := handler.NewProductHandler(productService)
-	categoryHandler := handler.NewCategoryHandler(categoryService)
-	orderHandler := handler.NewOrderHandler(orderService)
+	// Initialize API handlers
+	handlers := initializeHandlers(
+		customerService,
+		productService,
+		categoryService,
+		orderService,
+	)
 
-	// Initialize router
+	// Initialize router with middleware
 	router := api.NewRouter(
-		customerHandler,
-		productHandler,
-		categoryHandler,
-		orderHandler,
+		handlers.customerHandler,
+		handlers.productHandler,
+		handlers.categoryHandler,
+		handlers.orderHandler,
 		middleware.AuthConfig{
 			JWTSecret: cfg.JWT.Secret,
 			Issuer:    cfg.JWT.Issuer,
 		},
 	)
 
-	// Configure server
+	// Start server
+	startServer(router, cfg.Server.Port)
+}
+
+type handlers struct {
+	customerHandler *handler.CustomerHandler
+	productHandler  *handler.ProductHandler
+	categoryHandler *handler.CategoryHandler
+	orderHandler    *handler.OrderHandler
+}
+
+func initializeNotificationService(cfg *config.Config) notification.NotificationService {
+	smsService := notification.NewSMSService(cfg.SMS)
+	emailService := notification.NewEmailService(cfg.SMTP)
+	return notification.NewCompositeNotificationService(
+		smsService,
+		emailService,
+	)
+}
+
+func initializeHandlers(
+	customerService service.CustomerService,
+	productService service.ProductService,
+	categoryService service.CategoryService,
+	orderService service.OrderService,
+) *handlers {
+	return &handlers{
+		customerHandler: handler.NewCustomerHandler(customerService),
+		productHandler:  handler.NewProductHandler(productService),
+		categoryHandler: handler.NewCategoryHandler(categoryService),
+		orderHandler:    handler.NewOrderHandler(orderService),
+	}
+}
+
+func startServer(handler http.Handler, port int) {
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      router,
+		Addr:         fmt.Sprintf(":%d", port),
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server
+	// Start server in a goroutine
 	go func() {
-		log.Printf("Server starting on port %d", cfg.Server.Port)
+		log.Printf("Server starting on port %d", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}

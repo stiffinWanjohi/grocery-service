@@ -7,74 +7,95 @@ import (
 
 	"github.com/grocery-service/internal/domain"
 	"github.com/grocery-service/internal/repository/db"
+	customErrors "github.com/grocery-service/utils/errors"
 	"gorm.io/gorm"
 )
 
-type CustomerRepository struct {
-	db *db.PostgresDB
-}
-
-func NewCustomerRepository(db *db.PostgresDB) *CustomerRepository {
-	return &CustomerRepository{db: db}
-}
-
-func (r *CustomerRepository) Create(ctx context.Context, customer *domain.Customer) error {
-	if err := r.db.DB.WithContext(ctx).Create(customer).Error; err != nil {
-		return fmt.Errorf("failed to create customer: %w", err)
+type (
+	CustomerRepository interface {
+		Create(ctx context.Context, customer *domain.Customer) error
+		GetByID(ctx context.Context, id string) (*domain.Customer, error)
+		GetByEmail(ctx context.Context, email string) (*domain.Customer, error)
+		List(ctx context.Context) ([]domain.Customer, error)
+		Update(ctx context.Context, customer *domain.Customer) error
+		Delete(ctx context.Context, id string) error
 	}
-	return nil
+
+	CustomerRepositoryImpl struct {
+		*db.BaseRepository[domain.Customer]
+	}
+)
+
+func NewCustomerRepository(postgres *db.PostgresDB) *CustomerRepositoryImpl {
+	return &CustomerRepositoryImpl{
+		BaseRepository: db.NewBaseRepository[domain.Customer](postgres),
+	}
 }
 
-func (r *CustomerRepository) GetByID(ctx context.Context, id string) (*domain.Customer, error) {
+func (r *CustomerRepositoryImpl) Create(ctx context.Context, customer *domain.Customer) error {
+	return r.BaseRepository.WithTransaction(ctx, func(txRepo *db.BaseRepository[domain.Customer]) error {
+		if err := txRepo.GetDB().WithContext(ctx).Create(customer).Error; err != nil {
+			return fmt.Errorf("%w: %v", customErrors.ErrInvalidCustomerData, err)
+		}
+		return nil
+	})
+}
+
+func (r *CustomerRepositoryImpl) GetByID(ctx context.Context, id string) (*domain.Customer, error) {
 	var customer domain.Customer
-	err := r.db.DB.WithContext(ctx).First(&customer, "id = ?", id).Error
+	err := r.BaseRepository.GetDB().WithContext(ctx).First(&customer, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrCustomerNotFound
+			return nil, customErrors.ErrCustomerNotFound
 		}
-		return nil, fmt.Errorf("failed to get customer: %w", err)
+		return nil, fmt.Errorf("%w: %v", customErrors.ErrCustomerNotFound, err)
 	}
 	return &customer, nil
 }
 
-func (r *CustomerRepository) GetByEmail(ctx context.Context, email string) (*domain.Customer, error) {
+func (r *CustomerRepositoryImpl) GetByEmail(ctx context.Context, email string) (*domain.Customer, error) {
 	var customer domain.Customer
-	err := r.db.DB.WithContext(ctx).Where("email = ?", email).First(&customer).Error
+	err := r.BaseRepository.GetDB().WithContext(ctx).Where("email = ?", email).First(&customer).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrCustomerNotFound
+			return nil, customErrors.ErrCustomerNotFound
 		}
-		return nil, fmt.Errorf("failed to get customer by email: %w", err)
+		return nil, fmt.Errorf("%w: %v", customErrors.ErrCustomerNotFound, err)
 	}
 	return &customer, nil
 }
 
-func (r *CustomerRepository) List(ctx context.Context) ([]domain.Customer, error) {
+func (r *CustomerRepositoryImpl) List(ctx context.Context) ([]domain.Customer, error) {
 	var customers []domain.Customer
-	if err := r.db.DB.WithContext(ctx).Find(&customers).Error; err != nil {
-		return nil, fmt.Errorf("failed to list customers: %w", err)
+	err := r.BaseRepository.GetDB().WithContext(ctx).Find(&customers).Error
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", customErrors.ErrDBQuery, err)
 	}
 	return customers, nil
 }
 
-func (r *CustomerRepository) Update(ctx context.Context, customer *domain.Customer) error {
-	result := r.db.DB.WithContext(ctx).Save(customer)
-	if result.Error != nil {
-		return fmt.Errorf("failed to update customer: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return ErrCustomerNotFound
-	}
-	return nil
+func (r *CustomerRepositoryImpl) Update(ctx context.Context, customer *domain.Customer) error {
+	return r.BaseRepository.WithTransaction(ctx, func(txRepo *db.BaseRepository[domain.Customer]) error {
+		result := txRepo.GetDB().WithContext(ctx).Save(customer)
+		if result.Error != nil {
+			return fmt.Errorf("%w: %v", customErrors.ErrInvalidCustomerData, result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return customErrors.ErrCustomerNotFound
+		}
+		return nil
+	})
 }
 
-func (r *CustomerRepository) Delete(ctx context.Context, id string) error {
-	result := r.db.DB.WithContext(ctx).Delete(&domain.Customer{}, "id = ?", id)
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete customer: %w", result.Error)
-	}
-	if result.RowsAffected == 0 {
-		return ErrCustomerNotFound
-	}
-	return nil
+func (r *CustomerRepositoryImpl) Delete(ctx context.Context, id string) error {
+	return r.BaseRepository.WithTransaction(ctx, func(txRepo *db.BaseRepository[domain.Customer]) error {
+		result := txRepo.GetDB().WithContext(ctx).Delete(&domain.Customer{}, "id = ?", id)
+		if result.Error != nil {
+			return fmt.Errorf("%w: %v", customErrors.ErrDBQuery, result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return customErrors.ErrCustomerNotFound
+		}
+		return nil
+	})
 }

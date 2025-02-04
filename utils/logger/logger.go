@@ -14,6 +14,7 @@ func init() {
 	config := zap.NewProductionConfig()
 	config.EncoderConfig.TimeKey = "timestamp"
 	config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
+	config.EncoderConfig.StacktraceKey = "stacktrace"
 
 	var err error
 	log, err = config.Build()
@@ -26,6 +27,14 @@ func Info(message string, fields ...zap.Field) {
 	log.Info(message, fields...)
 }
 
+func Debug(message string, fields ...zap.Field) {
+	log.Debug(message, fields...)
+}
+
+func Warn(message string, fields ...zap.Field) {
+	log.Warn(message, fields...)
+}
+
 func Error(message string, fields ...zap.Field) {
 	log.Error(message, fields...)
 }
@@ -36,4 +45,20 @@ func Fatal(message string, fields ...zap.Field) {
 
 func With(fields ...zap.Field) *zap.Logger {
 	return log.With(fields...)
+}
+
+func Field(key string, value interface{}) zap.Field {
+	return zap.Any(key, value)
+}
+
+func String(key string, value string) zap.Field {
+	return zap.String(key, value)
+}
+
+func Int(key string, value int) zap.Field {
+	return zap.Int(key, value)
+}
+
+func Error64(key string, value error) zap.Field {
+	return zap.Error(value)
 }

@@ -77,10 +77,12 @@ var (
 	ErrProductUnavailable = errors.New("product is unavailable")
 
 	// Order Errors
-	ErrOrderNotFound      = errors.New("order not found")
-	ErrInvalidOrderData   = errors.New("invalid order data")
-	ErrOrderStatusInvalid = errors.New("invalid order status")
-	ErrEmptyOrder         = errors.New("order is empty")
+	ErrOrderNotFound        = errors.New("order not found")
+	ErrInvalidOrderData     = errors.New("invalid order data")
+	ErrOrderStatusInvalid   = errors.New("invalid order status")
+	ErrEmptyOrder           = errors.New("order is empty")
+	ErrOrderItemNotFound    = errors.New("order item not found")
+	ErrInvalidOrderItemData = errors.New("invalid order item data")
 
 	// Category Errors
 	ErrCategoryNotFound    = errors.New("category not found")
@@ -112,7 +114,8 @@ func IsNotFound(err error) bool {
 	return errors.Is(err, ErrCustomerNotFound) ||
 		errors.Is(err, ErrProductNotFound) ||
 		errors.Is(err, ErrOrderNotFound) ||
-		errors.Is(err, ErrCategoryNotFound)
+		errors.Is(err, ErrCategoryNotFound) ||
+		errors.Is(err, ErrOrderItemNotFound)
 }
 
 // IsDuplicate checks if the error is a duplicate error

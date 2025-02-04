@@ -2,18 +2,22 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/grocery-service/internal/domain"
 	"github.com/grocery-service/internal/service"
+	"github.com/grocery-service/utils/api"
+	customErrors "github.com/grocery-service/utils/errors"
 )
 
 type OrderHandler struct {
-	service *service.OrderService
+	service service.OrderService
 }
 
-func NewOrderHandler(service *service.OrderService) *OrderHandler {
+func NewOrderHandler(service service.OrderService) *OrderHandler {
 	return &OrderHandler{service: service}
 }
 
@@ -34,96 +38,165 @@ func (h *OrderHandler) Routes() chi.Router {
 func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var order domain.Order
 	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if err := h.service.Create(r.Context(), &order); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		switch {
+		case errors.Is(err, customErrors.ErrInvalidOrderData):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, customErrors.ErrInsufficientStock):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		default:
+			api.ErrorResponse(w, "Failed to create order", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(order)
+	api.SuccessResponse(w, order, http.StatusCreated)
 }
 
 func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	order, err := h.service.GetByID(r.Context(), id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	if _, err := uuid.Parse(id); err != nil {
+		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
 		return
 	}
 
-	json.NewEncoder(w).Encode(order)
+	order, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, customErrors.ErrOrderNotFound):
+			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
+		default:
+			api.ErrorResponse(w, "Failed to get order", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	api.SuccessResponse(w, order, http.StatusOK)
 }
 
 func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
 	orders, err := h.service.List(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.ErrorResponse(w, "Failed to list orders", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(orders)
+	api.SuccessResponse(w, orders, http.StatusOK)
 }
 
 func (h *OrderHandler) ListByCustomerID(w http.ResponseWriter, r *http.Request) {
 	customerID := chi.URLParam(r, "customerID")
-	orders, err := h.service.ListByCustomerID(r.Context(), customerID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if _, err := uuid.Parse(customerID); err != nil {
+		api.ErrorResponse(w, "Invalid customer ID", http.StatusBadRequest)
 		return
 	}
 
-	json.NewEncoder(w).Encode(orders)
+	orders, err := h.service.ListByCustomerID(r.Context(), customerID)
+	if err != nil {
+		switch {
+		case errors.Is(err, customErrors.ErrCustomerNotFound):
+			api.ErrorResponse(w, "Customer not found", http.StatusNotFound)
+		default:
+			api.ErrorResponse(w, "Failed to list customer orders", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	api.SuccessResponse(w, orders, http.StatusOK)
 }
 
 func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
+		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
+		return
+	}
 
 	var request struct {
 		Status domain.OrderStatus `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if err := h.service.UpdateStatus(r.Context(), id, request.Status); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		switch {
+		case errors.Is(err, customErrors.ErrOrderNotFound):
+			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
+		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		default:
+			api.ErrorResponse(w, "Failed to update order status", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	api.SuccessResponse(w, nil, http.StatusOK)
 }
 
 func (h *OrderHandler) AddOrderItem(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(orderID); err != nil {
+		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
+		return
+	}
 
 	var item domain.OrderItem
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if err := h.service.AddOrderItem(r.Context(), orderID, &item); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		switch {
+		case errors.Is(err, customErrors.ErrOrderNotFound):
+			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
+		case errors.Is(err, customErrors.ErrInvalidOrderData):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, customErrors.ErrInsufficientStock):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		default:
+			api.ErrorResponse(w, "Failed to add order item", http.StatusInternalServerError)
+		}
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(item)
+	api.SuccessResponse(w, item, http.StatusCreated)
 }
 
 func (h *OrderHandler) RemoveOrderItem(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
-	itemID := chi.URLParam(r, "itemID")
-
-	if err := h.service.RemoveOrderItem(r.Context(), orderID, itemID); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if _, err := uuid.Parse(orderID); err != nil {
+		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	itemID := chi.URLParam(r, "itemID")
+	if _, err := uuid.Parse(itemID); err != nil {
+		api.ErrorResponse(w, "Invalid item ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.RemoveOrderItem(r.Context(), orderID, itemID); err != nil {
+		switch {
+		case errors.Is(err, customErrors.ErrOrderNotFound):
+			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
+		case errors.Is(err, customErrors.ErrOrderItemNotFound):
+			api.ErrorResponse(w, "Order item not found", http.StatusNotFound)
+		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
+			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+		default:
+			api.ErrorResponse(w, "Failed to remove order item", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	api.SuccessResponse(w, nil, http.StatusNoContent)
 }
