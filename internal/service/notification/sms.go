@@ -7,7 +7,7 @@ import (
 
 	"github.com/grocery-service/internal/config"
 	"github.com/grocery-service/internal/domain"
-	"github.com/grocery-service/internal/utils"
+	"github.com/grocery-service/utils/errors"
 	at "github.com/kamikazechaser/africastalking/v2"
 )
 
@@ -19,7 +19,7 @@ type SMSService struct {
 func NewSMSService(config config.SMSConfig) (*SMSService, error) {
 	client := at.Initialize(config.Username, config.APIKey)
 	if client == nil {
-		return nil, utils.WrapError(fmt.Errorf("client initialization failed"), "failed to initialize SMS service")
+		return nil, errors.WrapError(fmt.Errorf("client initialization failed"), "failed to initialize SMS service")
 	}
 
 	if config.Environment == "sandbox" {
@@ -38,7 +38,7 @@ func (s *SMSService) SendOrderConfirmation(ctx context.Context, order *domain.Or
 	message := fmt.Sprintf("Order #%s confirmed. Total: %.2f. Thank you for your order!",
 		order.ID, order.TotalPrice)
 	if err := s.sendSMS(ctx, order.Customer.Phone, message); err != nil {
-		return utils.LogError(err, "Failed to send order confirmation SMS", utils.ErrCodeSMSSendFailed).Error
+		return errors.LogError(err, "Failed to send order confirmation SMS", errors.ErrCodeSMSSendFailed).Error
 	}
 	return nil
 }
@@ -47,7 +47,7 @@ func (s *SMSService) SendOrderStatusUpdate(ctx context.Context, order *domain.Or
 	message := fmt.Sprintf("Order #%s status updated to: %s",
 		order.ID, order.Status)
 	if err := s.sendSMS(ctx, order.Customer.Phone, message); err != nil {
-		return utils.LogError(err, "Failed to send order status update SMS", utils.ErrCodeSMSSendFailed).Error
+		return errors.LogError(err, "Failed to send order status update SMS", errors.ErrCodeSMSSendFailed).Error
 	}
 	return nil
 }
@@ -65,7 +65,7 @@ func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {
 		})
 
 		if err != nil {
-			done <- utils.WrapError(err, "failed to send SMS")
+			done <- errors.WrapError(err, "failed to send SMS")
 			return
 		}
 
@@ -85,7 +85,7 @@ func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {
 
 	select {
 	case <-ctx.Done():
-		return utils.WrapError(ctx.Err(), "SMS sending timeout")
+		return errors.WrapError(ctx.Err(), "SMS sending timeout")
 	case err := <-done:
 		return err
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/grocery-service/internal/domain"
-	"github.com/grocery-service/internal/utils"
+	"github.com/grocery-service/utils/errors"
 )
 
 type NotificationService interface {
@@ -24,9 +24,9 @@ func (s *CompositeNotificationService) SendOrderConfirmation(ctx context.Context
 	var lastError error
 	for _, service := range s.services {
 		if err := service.SendOrderConfirmation(ctx, order); err != nil {
-			lastError = utils.LogError(err,
+			lastError = errors.LogError(err,
 				"Failed to send order confirmation",
-				utils.ErrCodeEmailSendFailed).Error
+				errors.ErrCodeEmailSendFailed).Error
 		}
 	}
 	return lastError
@@ -36,9 +36,9 @@ func (s *CompositeNotificationService) SendOrderStatusUpdate(ctx context.Context
 	var lastError error
 	for _, service := range s.services {
 		if err := service.SendOrderStatusUpdate(ctx, order); err != nil {
-			lastError = utils.LogError(err,
+			lastError = errors.LogError(err,
 				"Failed to send status update",
-				utils.ErrCodeEmailSendFailed).Error
+				errors.ErrCodeEmailSendFailed).Error
 		}
 	}
 	return lastError
