@@ -4,8 +4,9 @@ export
 MIGRATION_DIR=migrations
 DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 
-.PHONY: migrate-create migrate-up migrate-down migrate-force
+.PHONY: migrate-create migrate-up migrate-down migrate-force docker-build docker-up docker-down docker-logs
 
+# Existing migration commands
 migrate-create:
 	@read -p "Enter migration name: " name; \
 	migrate create -ext sql -dir $(MIGRATION_DIR) -seq $${name}; \
@@ -31,6 +32,7 @@ migrate-force:
 	@read -p "Enter version: " version; \
 	migrate -path $(MIGRATION_DIR) -database "$(DB_URL)" force $$version
 
+# Database commands
 db-create:
 	PGPASSWORD=$(DB_PASSWORD) createdb -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) $(DB_NAME)
 
@@ -39,8 +41,33 @@ db-drop:
 
 db-reset: db-drop db-create migrate-up
 
+# Docker commands
+docker-build:
+	docker-compose build
+
+docker-up:
+	docker-compose up -d
+
+docker-down:
+	docker-compose down
+
+docker-logs:
+	docker-compose logs -f
+
+docker-migrate:
+	docker-compose exec api ./migrate up
+
+docker-reset: docker-down
+	docker-compose down -v
+	docker-compose up -d
+
+# Installation commands
 install-migrate:
 	go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Development commands
+dev:
+	docker-compose up --build
 
 .DEFAULT_GOAL := help
 help:
@@ -53,3 +80,11 @@ help:
 	@echo "  make db-drop         - Drop database"
 	@echo "  make db-reset        - Reset database"
 	@echo "  make install-migrate  - Install migration tool"
+	@echo "Docker commands:"
+	@echo "  make docker-build    - Build Docker images"
+	@echo "  make docker-up       - Start Docker containers"
+	@echo "  make docker-down     - Stop Docker containers"
+	@echo "  make docker-logs     - View Docker logs"
+	@echo "  make docker-migrate  - Run migrations in Docker"
+	@echo "  make docker-reset    - Reset Docker environment"
+	@echo "  make dev            - Start development environment"
