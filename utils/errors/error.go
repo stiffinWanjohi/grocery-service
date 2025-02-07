@@ -64,11 +64,13 @@ var (
 	ErrTokenExpired       = errors.New("token has expired")
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrUnauthorized       = errors.New("unauthorized access")
+	ErrTokenNotFound      = errors.New("token not found")
+	ErrTokenRevoked       = errors.New("token has been revoked")
 
 	// Customer Errors
 	ErrCustomerNotFound    = errors.New("customer not found")
 	ErrInvalidCustomerData = errors.New("invalid customer data")
-	ErrDuplicateEmail      = errors.New("email already exists")
+	ErrCustomerExists      = errors.New("customer already exists")
 
 	// Product Errors
 	ErrProductNotFound    = errors.New("product not found")
@@ -88,10 +90,17 @@ var (
 	ErrCategoryNotFound    = errors.New("category not found")
 	ErrInvalidCategoryData = errors.New("invalid category data")
 
+	// User Errors
+	ErrUserNotFound    = errors.New("user not found")
+	ErrDuplicateEmail  = errors.New("email already exists")
+	ErrInvalidUserData = errors.New("invalid user data")
+
 	// Database Errors
 	ErrDBConnection = errors.New("database connection error")
 	ErrDBQuery      = errors.New("database query error")
 	ErrDBDuplicate  = errors.New("duplicate entry in database")
+
+	ErrInternalServer = errors.New("internal server error")
 )
 
 // LogError logs an error and returns an ErrorResponse
@@ -115,7 +124,8 @@ func IsNotFound(err error) bool {
 		errors.Is(err, ErrProductNotFound) ||
 		errors.Is(err, ErrOrderNotFound) ||
 		errors.Is(err, ErrCategoryNotFound) ||
-		errors.Is(err, ErrOrderItemNotFound)
+		errors.Is(err, ErrOrderItemNotFound) ||
+		errors.Is(err, ErrUserNotFound)
 }
 
 // IsDuplicate checks if the error is a duplicate error
@@ -129,7 +139,8 @@ func IsValidationError(err error) bool {
 	return errors.Is(err, ErrInvalidCustomerData) ||
 		errors.Is(err, ErrInvalidProductData) ||
 		errors.Is(err, ErrInvalidOrderData) ||
-		errors.Is(err, ErrInvalidCategoryData)
+		errors.Is(err, ErrInvalidCategoryData) ||
+		errors.Is(err, ErrInvalidUserData)
 }
 
 // IsAuthenticationError checks if the error is an authentication error

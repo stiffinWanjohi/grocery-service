@@ -1,4 +1,4 @@
-I'll help you create a comprehensive README.md file:
+I'll help you update the README.md file with the project structure and testing information:
 
 ```markdown:/Users/wanjohi/development/go/src/github.com/grocery-service/README.md
 # Grocery Service
@@ -10,144 +10,55 @@ A modern, scalable grocery management service built with Go.
 - 🛒 Product Management
 - 👥 Customer Management
 - 📦 Order Processing
-- 📱 SMS Notifications (Africa's Talking)
-- 📧 Email Notifications
 - 🔐 JWT Authentication
 - 📊 Category Management
+- 🔄 Real-time Stock Updates
+- 📝 API Documentation with Swagger
 
 ## Tech Stack
 
-- Go 1.21
-- PostgreSQL 15
-- Docker & Docker Compose
+- Go 1.21+
+- PostgreSQL
+- Chi Router
 - JWT Authentication
-- Africa's Talking SMS
-- SMTP Email
+- Swagger Documentation
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
 - Go 1.21+
-- PostgreSQL 15
-- Docker and Docker Compose
+- PostgreSQL
 - Make
 
-### Development Setup
+### Installation
 
-1. Clone the repository
+1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/grocery-service.git
 cd grocery-service
 ```
 
-2. Set up environment variables
+2. Install dependencies:
+```bash
+go mod download
+```
+
+3. Set up environment variables:
 ```bash
 cp .env.example .env
 ```
 
-3. Start services
+4. Run the application:
 ```bash
-make dev
-```
-
-4. Run migrations
-```bash
-make migrate-up
-```
-
-## Available Make Commands
-
-```bash
-make dev              # Start development environment
-make migrate-up       # Run database migrations
-make migrate-down     # Rollback migrations
-make migrate-create   # Create new migration
-make docker-build    # Build Docker images
-make docker-up       # Start Docker containers
-make docker-down     # Stop Docker containers
+go run cmd/api/main.go
 ```
 
 ## API Documentation
 
-### Authentication
-
-All endpoints except `/auth/login` require JWT authentication:
-```http
-Authorization: Bearer <token>
+The API documentation is available via Swagger UI at:
 ```
-
-### Base URL
-```
-http://localhost:8080/api/v1
-```
-
-### Endpoints
-
-#### Auth
-- `POST /auth/login` - Login
-- `POST /auth/register` - Register new user
-
-#### Products
-- `GET /products` - List products
-- `GET /products/{id}` - Get product
-- `POST /products` - Create product
-- `PUT /products/{id}` - Update product
-- `DELETE /products/{id}` - Delete product
-
-#### Customers
-- `GET /customers` - List customers
-- `GET /customers/{id}` - Get customer
-- `POST /customers` - Create customer
-- `PUT /customers/{id}` - Update customer
-- `DELETE /customers/{id}` - Delete customer
-
-#### Orders
-- `GET /orders` - List orders
-- `GET /orders/{id}` - Get order
-- `POST /orders` - Create order
-- `PUT /orders/{id}/status` - Update order status
-
-#### Categories
-- `GET /categories` - List categories
-- `POST /categories` - Create category
-- `PUT /categories/{id}` - Update category
-- `DELETE /categories/{id}` - Delete category
-
-## Configuration
-
-### Environment Variables
-
-```env
-# Server
-SERVER_PORT=8080
-SERVER_BASE_URL=http://localhost:8080
-
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=grocery_db
-DB_SSLMODE=disable
-
-# JWT
-JWT_SECRET=your-secret-key
-JWT_ISSUER=grocery-service
-
-# SMTP
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM=noreply@grocery.com
-SMTP_FROM_NAME=Grocery Service
-
-# SMS (Africa's Talking)
-SMS_API_KEY=your-api-key
-SMS_USERNAME=your-username
-SMS_SENDER_ID=GROCERY
-SMS_ENVIRONMENT=sandbox
+http://localhost:8080/swagger/index.html
 ```
 
 ## Project Structure
@@ -157,60 +68,97 @@ SMS_ENVIRONMENT=sandbox
 ├── cmd/
 │   └── api/                 # Application entrypoint
 ├── internal/
-│   ├── api/                # API handlers and routes
+│   ├── api/
+│   │   ├── handlers/       # HTTP handlers
+│   │   └── middleware/     # HTTP middleware
 │   ├── config/             # Configuration
 │   ├── domain/             # Domain models
-│   ├── repository/         # Data access
+│   ├── repository/         # Data access layer
+│   │   └── postgres/       # PostgreSQL implementations
 │   ├── service/            # Business logic
-│   └── utils/              # Utilities
-├── migrations/             # Database migrations
-├── .env.example           # Environment template
-├── docker-compose.yml     # Docker compose config
-├── Dockerfile             # Docker build file
-├── go.mod                 # Go modules
-└── Makefile              # Build commands
+│   └── utils/              # Utility packages
+├── docs/                   # Documentation
+│   └── swagger/            # Swagger files
+├── tests/                  # Test utilities
+│   └── mocks/             # Mock implementations
+└── migrations/             # Database migrations
 ```
 
-## Deployment
+## Testing
 
-### Using Docker
+### Running Tests
 
+Run all tests:
 ```bash
-# Build and start services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
+go test ./...
 ```
 
-### Manual Deployment
-
-1. Build the binary:
+Run tests with coverage:
 ```bash
-go build -o grocery-service ./cmd/api
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
 ```
 
-2. Run migrations:
-```bash
-make migrate-up
+### Test Structure
+
+Tests are organized following the same structure as the production code:
+
+- Unit tests are placed next to the code they test
+- Integration tests are in separate test files
+- Mocks are generated using testify/mock
+
+Example test file structure:
+```
+internal/
+├── service/
+│   ├── category.go
+│   └── category_test.go
+└── repository/
+    ├── postgres/
+    │   ├── category.go
+    │   └── category_test.go
 ```
 
-3. Start the service:
-```bash
-./grocery-service
-```
+## API Endpoints
+
+### Categories
+- `GET /api/v1/categories` - List all categories
+- `POST /api/v1/categories` - Create a new category
+- `GET /api/v1/categories/{id}` - Get category by ID
+- `PUT /api/v1/categories/{id}` - Update category
+- `DELETE /api/v1/categories/{id}` - Delete category
+- `GET /api/v1/categories/{id}/subcategories` - List subcategories
+
+### Products
+- `GET /api/v1/products` - List all products
+- `POST /api/v1/products` - Create a new product
+- `GET /api/v1/products/{id}` - Get product by ID
+- `PUT /api/v1/products/{id}` - Update product
+- `DELETE /api/v1/products/{id}` - Delete product
+- `PUT /api/v1/products/{id}/stock` - Update product stock
+- `GET /api/v1/products/category/{categoryID}` - List products by category
+
+### Customers
+- `GET /api/v1/customers` - List all customers
+- `POST /api/v1/customers` - Create a new customer
+- `GET /api/v1/customers/{id}` - Get customer by ID
+- `PUT /api/v1/customers/{id}` - Update customer
+- `DELETE /api/v1/customers/{id}` - Delete customer
+
+### Orders
+- `GET /api/v1/orders` - List all orders
+- `POST /api/v1/orders` - Create a new order
+- `GET /api/v1/orders/{id}` - Get order by ID
+- `GET /api/v1/orders/customer/{customerID}` - List customer orders
+- `PUT /api/v1/orders/{id}/status` - Update order status
+- `POST /api/v1/orders/{id}/items` - Add order item
+- `DELETE /api/v1/orders/{id}/items/{itemID}` - Remove order item
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+```

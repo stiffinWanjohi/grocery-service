@@ -16,12 +16,44 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func createTestOrder() *domain.Order {
+	userID := uuid.New()
+	customerID := uuid.New()
+	return &domain.Order{
+		ID:         uuid.New(),
+		TotalPrice: 100.50,
+		Customer: &domain.Customer{
+			ID:     customerID,
+			UserID: userID,
+			User: &domain.User{
+				ID:      userID,
+				Name:    "John Doe",
+				Email:   "john@example.com",
+				Phone:   "+1234567890",
+				Address: "123 Test St",
+			},
+		},
+		Items: []domain.OrderItem{
+			{
+				Product:  &domain.Product{Name: "Test Product"},
+				Quantity: 2,
+				Price:    50.25,
+			},
+		},
+	}
+}
+
 func TestSMSService_SendOrderConfirmation(t *testing.T) {
-	// Mock SMS API server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "test-api-key", r.Header.Get("apiKey"))
+
+		var payload map[string]string
+		json.NewDecoder(r.Body).Decode(&payload)
+		assert.Equal(t, "+1234567890", payload["to"])
+		assert.Contains(t, payload["message"], "John Doe")
+		assert.Contains(t, payload["message"], "123 Test St")
 
 		response := map[string]interface{}{
 			"SMSMessageData": map[string]interface{}{
@@ -44,20 +76,13 @@ func TestSMSService_SendOrderConfirmation(t *testing.T) {
 	}
 
 	service := NewSMSService(config)
-	order := &domain.Order{
-		ID:         uuid.New(),
-		TotalPrice: 100.50,
-		Customer: &domain.Customer{
-			Phone: "+1234567890",
-		},
-	}
+	order := createTestOrder()
 
 	err := service.SendOrderConfirmation(context.Background(), order)
 	assert.NoError(t, err)
 }
 
 func TestEmailService_SendOrderConfirmation(t *testing.T) {
-	// Create mock SMTP server
 	mockSMTP := &mockSMTPServer{t: t}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	assert.NoError(t, err)
@@ -75,32 +100,19 @@ func TestEmailService_SendOrderConfirmation(t *testing.T) {
 	}
 
 	service := NewEmailService(config)
-	order := &domain.Order{
-		ID:         uuid.New(),
-		TotalPrice: 100.50,
-		Customer: &domain.Customer{
-			Name:  "John Doe",
-			Email: "john@example.com",
-		},
-		Items: []domain.OrderItem{
-			{
-				Product:  &domain.Product{Name: "Test Product"},
-				Quantity: 2,
-				Price:    50.25,
-			},
-		},
-	}
+	order := createTestOrder()
 
 	err = service.SendOrderConfirmation(context.Background(), order)
 	assert.NoError(t, err)
 
-	// Verify email content
-	assert.True(t, strings.Contains(mockSMTP.LastMessage(), "Order Confirmation"))
-	assert.True(t, strings.Contains(mockSMTP.LastMessage(), "John Doe"))
-	assert.True(t, strings.Contains(mockSMTP.LastMessage(), "Test Product"))
+	lastMsg := mockSMTP.LastMessage()
+	assert.True(t, strings.Contains(lastMsg, "Order Confirmation"))
+	assert.True(t, strings.Contains(lastMsg, "John Doe"))
+	assert.True(t, strings.Contains(lastMsg, "Test Product"))
+	assert.True(t, strings.Contains(lastMsg, "123 Test St"))
+	assert.True(t, strings.Contains(lastMsg, "+1234567890"))
 }
 
-// Mock SMTP server
 type mockSMTPServer struct {
 	t       *testing.T
 	lastMsg string
@@ -119,7 +131,6 @@ func (s *mockSMTPServer) Start(l net.Listener) {
 func (s *mockSMTPServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	// Send greeting
 	conn.Write([]byte("220 mock.smtp.server\r\n"))
 
 	buf := make([]byte, 1024)
@@ -165,20 +176,17 @@ func TestCompositeNotificationService(t *testing.T) {
 	mockEmail := &mockNotificationService{}
 
 	service := NewCompositeNotificationService(mockSMS, mockEmail)
-	order := &domain.Order{ID: uuid.New()}
+	order := createTestOrder()
 
-	// Test successful notifications
 	err := service.SendOrderConfirmation(context.Background(), order)
 	assert.NoError(t, err)
 
-	// Test partial failure
 	mockSMS.shouldFail = true
 	err = service.SendOrderConfirmation(context.Background(), order)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Failed to send order confirmation")
 }
 
-// Mock notification service for testing
 type mockNotificationService struct {
 	shouldFail bool
 }

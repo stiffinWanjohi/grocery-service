@@ -50,36 +50,6 @@ func (_m *CustomerRepository) Delete(ctx context.Context, id string) error {
 	return r0
 }
 
-// GetByEmail provides a mock function with given fields: ctx, email
-func (_m *CustomerRepository) GetByEmail(ctx context.Context, email string) (*domain.Customer, error) {
-	ret := _m.Called(ctx, email)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByEmail")
-	}
-
-	var r0 *domain.Customer
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Customer, error)); ok {
-		return rf(ctx, email)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Customer); ok {
-		r0 = rf(ctx, email)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Customer)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, email)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetByID provides a mock function with given fields: ctx, id
 func (_m *CustomerRepository) GetByID(ctx context.Context, id string) (*domain.Customer, error) {
 	ret := _m.Called(ctx, id)
@@ -103,6 +73,36 @@ func (_m *CustomerRepository) GetByID(ctx context.Context, id string) (*domain.C
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetByUserID provides a mock function with given fields: ctx, userID
+func (_m *CustomerRepository) GetByUserID(ctx context.Context, userID string) (*domain.Customer, error) {
+	ret := _m.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByUserID")
+	}
+
+	var r0 *domain.Customer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Customer, error)); ok {
+		return rf(ctx, userID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Customer); ok {
+		r0 = rf(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Customer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, userID)
 	} else {
 		r1 = ret.Error(1)
 	}

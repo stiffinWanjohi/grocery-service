@@ -9,216 +9,308 @@ import (
 	mocks "github.com/grocery-service/tests/mocks/repository"
 	customErrors "github.com/grocery-service/utils/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
+func setupCustomerTest(t *testing.T) (CustomerService, *mocks.CustomerRepository, *mocks.UserRepository) {
+	customerRepo := mocks.NewCustomerRepository(t)
+	userRepo := mocks.NewUserRepository(t)
+	service := NewCustomerService(customerRepo, userRepo)
+	return service, customerRepo, userRepo
+}
+
+func createTestUser() *domain.User {
+	return &domain.User{
+		ID:      uuid.New(),
+		Email:   "test@example.com",
+		Name:    "Test User",
+		Role:    domain.CustomerRole,
+		Picture: "https://example.com/picture.jpg",
+	}
+}
+
 func TestCustomerService_Create(t *testing.T) {
-	mockRepo := mocks.NewCustomerRepository(t)
-	service := NewCustomerService(mockRepo)
-	ctx := context.Background()
-
-	customer := &domain.Customer{
-		ID:    uuid.New(),
-		Name:  "John Doe",
-		Email: "john@example.com",
-		Phone: "+1234567890",
-	}
-
-	// Test case: Successful creation
-	mockRepo.On("GetByEmail", ctx, customer.Email).Return(nil, customErrors.ErrCustomerNotFound)
-	mockRepo.On("Create", ctx, customer).Return(nil)
-
-	err := service.Create(ctx, customer)
-	assert.NoError(t, err)
-
-	// Test case: Email already registered
-	existingCustomer := &domain.Customer{
-		ID:    uuid.New(),
-		Name:  "Existing User",
-		Email: "john@example.com",
-	}
-	mockRepo.On("GetByEmail", ctx, existingCustomer.Email).Return(existingCustomer, nil)
-
-	err = service.Create(ctx, existingCustomer)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "email already registered")
-
-	// Test validation errors
-	testCases := []struct {
-		name     string
-		customer *domain.Customer
-		errMsg   string
+	tests := []struct {
+		name          string
+		userID        string
+		setupMocks    func(*mocks.CustomerRepository, *mocks.UserRepository, string)
+		expectedError error
 	}{
 		{
-			name:     "Empty name",
-			customer: &domain.Customer{ID: uuid.New(), Email: "john@example.com", Phone: "+1234567890"},
-			errMsg:   "customer name is required",
+			name:   "Success - Create New Customer",
+			userID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {
+				user := createTestUser()
+				user.ID = uuid.MustParse(userID)
+				ur.On("GetByID", mock.Anything, userID).Return(user, nil)
+				cr.On("GetByUserID", mock.Anything, userID).Return(nil, customErrors.ErrCustomerNotFound)
+				cr.On("Create", mock.Anything, mock.MatchedBy(func(c *domain.Customer) bool {
+					return c.UserID.String() == userID
+				})).Return(nil)
+			},
+			expectedError: nil,
 		},
 		{
-			name:     "Invalid email",
-			customer: &domain.Customer{ID: uuid.New(), Name: "John Doe", Email: "invalid-email", Phone: "+1234567890"},
-			errMsg:   "invalid email format",
+			name:          "Error - Empty UserID",
+			userID:        "",
+			setupMocks:    func(cr *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {},
+			expectedError: customErrors.ErrInvalidCustomerData,
 		},
 		{
-			name:     "Invalid phone",
-			customer: &domain.Customer{ID: uuid.New(), Name: "John Doe", Email: "john@example.com", Phone: "invalid"},
-			errMsg:   "invalid phone format",
+			name:   "Error - User Not Found",
+			userID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {
+				ur.On("GetByID", mock.Anything, userID).Return(nil, customErrors.ErrUserNotFound)
+			},
+			expectedError: customErrors.ErrUserNotFound,
+		},
+		{
+			name:   "Error - Customer Already Exists",
+			userID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {
+				user := createTestUser()
+				user.ID = uuid.MustParse(userID)
+				ur.On("GetByID", mock.Anything, userID).Return(user, nil)
+				cr.On("GetByUserID", mock.Anything, userID).Return(&domain.Customer{}, nil)
+			},
+			expectedError: customErrors.ErrCustomerExists,
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			mockRepo.On("GetByEmail", ctx, tc.customer.Email).Return(nil, customErrors.ErrCustomerNotFound)
-			err := service.Create(ctx, tc.customer)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tc.errMsg)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, customerRepo, userRepo := setupCustomerTest(t)
+			tt.setupMocks(customerRepo, userRepo, tt.userID)
+
+			customer, err := service.Create(context.Background(), tt.userID)
+
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
+				assert.Nil(t, customer)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, customer)
+				assert.Equal(t, tt.userID, customer.UserID.String())
+			}
 		})
 	}
 }
 
 func TestCustomerService_GetByID(t *testing.T) {
-	mockRepo := mocks.NewCustomerRepository(t)
-	service := NewCustomerService(mockRepo)
-	ctx := context.Background()
-
-	customer := &domain.Customer{
-		ID:    uuid.New(),
-		Name:  "John Doe",
-		Email: "john@example.com",
-		Phone: "+1234567890",
+	tests := []struct {
+		name          string
+		customerID    string
+		setupMocks    func(*mocks.CustomerRepository, string)
+		expectedError error
+	}{
+		{
+			name:       "Success - Get Existing Customer",
+			customerID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, customerID string) {
+				user := createTestUser()
+				customer := &domain.Customer{
+					ID:     uuid.MustParse(customerID),
+					UserID: user.ID,
+					User:   user,
+				}
+				cr.On("GetByID", mock.Anything, customerID).Return(customer, nil)
+			},
+			expectedError: nil,
+		},
+		{
+			name:          "Error - Empty CustomerID",
+			customerID:    "",
+			setupMocks:    func(cr *mocks.CustomerRepository, customerID string) {},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name:       "Error - Customer Not Found",
+			customerID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, customerID string) {
+				cr.On("GetByID", mock.Anything, customerID).Return(nil, customErrors.ErrCustomerNotFound)
+			},
+			expectedError: customErrors.ErrCustomerNotFound,
+		},
 	}
 
-	// Test empty ID
-	_, err := service.GetByID(ctx, "")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "customer ID is required")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, customerRepo, _ := setupCustomerTest(t)
+			tt.setupMocks(customerRepo, tt.customerID)
 
-	// Test successful retrieval
-	mockRepo.On("GetByID", ctx, customer.ID.String()).Return(customer, nil)
-	found, err := service.GetByID(ctx, customer.ID.String())
-	assert.NoError(t, err)
-	assert.Equal(t, customer.ID, found.ID)
+			customer, err := service.GetByID(context.Background(), tt.customerID)
 
-	// Test not found case
-	mockRepo.On("GetByID", ctx, "non-existent").Return(nil, customErrors.ErrCustomerNotFound)
-	_, err = service.GetByID(ctx, "non-existent")
-	assert.ErrorIs(t, err, customErrors.ErrCustomerNotFound)
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
+				assert.Nil(t, customer)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, customer)
+				assert.Equal(t, tt.customerID, customer.ID.String())
+				assert.NotNil(t, customer.User)
+			}
+		})
+	}
 }
 
-func TestCustomerService_GetByEmail(t *testing.T) {
-	mockRepo := mocks.NewCustomerRepository(t)
-	service := NewCustomerService(mockRepo)
-	ctx := context.Background()
-
-	customer := &domain.Customer{
-		ID:    uuid.New(),
-		Name:  "John Doe",
-		Email: "john@example.com",
-		Phone: "+1234567890",
+func TestCustomerService_GetByUserID(t *testing.T) {
+	tests := []struct {
+		name          string
+		userID        string
+		setupMocks    func(*mocks.CustomerRepository, string)
+		expectedError error
+	}{
+		{
+			name:   "Success - Get Customer By UserID",
+			userID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, userID string) {
+				user := createTestUser()
+				user.ID = uuid.MustParse(userID)
+				customer := &domain.Customer{
+					ID:     uuid.New(),
+					UserID: user.ID,
+					User:   user,
+				}
+				cr.On("GetByUserID", mock.Anything, userID).Return(customer, nil)
+			},
+			expectedError: nil,
+		},
+		{
+			name:          "Error - Empty UserID",
+			userID:        "",
+			setupMocks:    func(cr *mocks.CustomerRepository, userID string) {},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name:   "Error - Customer Not Found",
+			userID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, userID string) {
+				cr.On("GetByUserID", mock.Anything, userID).Return(nil, customErrors.ErrCustomerNotFound)
+			},
+			expectedError: customErrors.ErrCustomerNotFound,
+		},
 	}
 
-	// Test empty email
-	_, err := service.GetByEmail(ctx, "")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "email is required")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, customerRepo, _ := setupCustomerTest(t)
+			tt.setupMocks(customerRepo, tt.userID)
 
-	// Test successful retrieval
-	mockRepo.On("GetByEmail", ctx, customer.Email).Return(customer, nil)
-	found, err := service.GetByEmail(ctx, customer.Email)
-	assert.NoError(t, err)
-	assert.Equal(t, customer.ID, found.ID)
+			customer, err := service.GetByUserID(context.Background(), tt.userID)
 
-	// Test not found case
-	mockRepo.On("GetByEmail", ctx, "nonexistent@example.com").Return(nil, customErrors.ErrCustomerNotFound)
-	_, err = service.GetByEmail(ctx, "nonexistent@example.com")
-	assert.ErrorIs(t, err, customErrors.ErrCustomerNotFound)
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
+				assert.Nil(t, customer)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, customer)
+				assert.Equal(t, tt.userID, customer.UserID.String())
+				assert.NotNil(t, customer.User)
+			}
+		})
+	}
 }
 
 func TestCustomerService_List(t *testing.T) {
-	mockRepo := mocks.NewCustomerRepository(t)
-	service := NewCustomerService(mockRepo)
-	ctx := context.Background()
-
-	customers := []domain.Customer{
-		{ID: uuid.New(), Name: "John Doe", Email: "john@example.com", Phone: "+1234567890"},
-		{ID: uuid.New(), Name: "Jane Doe", Email: "jane@example.com", Phone: "+1234567891"},
+	tests := []struct {
+		name          string
+		setupMocks    func(*mocks.CustomerRepository)
+		expectedCount int
+		expectedError error
+	}{
+		{
+			name: "Success - List Multiple Customers",
+			setupMocks: func(cr *mocks.CustomerRepository) {
+				customers := []domain.Customer{
+					{ID: uuid.New(), UserID: createTestUser().ID, User: createTestUser()},
+					{ID: uuid.New(), UserID: createTestUser().ID, User: createTestUser()},
+				}
+				cr.On("List", mock.Anything).Return(customers, nil)
+			},
+			expectedCount: 2,
+			expectedError: nil,
+		},
+		{
+			name: "Success - Empty List",
+			setupMocks: func(cr *mocks.CustomerRepository) {
+				cr.On("List", mock.Anything).Return([]domain.Customer{}, nil)
+			},
+			expectedCount: 0,
+			expectedError: nil,
+		},
 	}
 
-	mockRepo.On("List", ctx).Return(customers, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, customerRepo, _ := setupCustomerTest(t)
+			tt.setupMocks(customerRepo)
 
-	found, err := service.List(ctx)
-	assert.NoError(t, err)
-	assert.Len(t, found, len(customers))
-}
+			customers, err := service.List(context.Background())
 
-func TestCustomerService_Update(t *testing.T) {
-	mockRepo := mocks.NewCustomerRepository(t)
-	service := NewCustomerService(mockRepo)
-	ctx := context.Background()
-
-	customer := &domain.Customer{
-		ID:    uuid.New(),
-		Name:  "John Doe",
-		Email: "john@example.com",
-		Phone: "+1234567890",
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
+				assert.Nil(t, customers)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, customers, tt.expectedCount)
+				if tt.expectedCount > 0 {
+					for _, c := range customers {
+						assert.NotNil(t, c.User)
+					}
+				}
+			}
+		})
 	}
-
-	// Test successful update
-	mockRepo.On("GetByEmail", ctx, customer.Email).Return(nil, customErrors.ErrCustomerNotFound)
-	mockRepo.On("Update", ctx, customer).Return(nil)
-
-	err := service.Update(ctx, customer)
-	assert.NoError(t, err)
-
-	// Test email already registered by another customer
-	existingCustomer := &domain.Customer{
-		ID:    uuid.New(),
-		Name:  "Another User",
-		Email: "john@example.com",
-	}
-	mockRepo.On("GetByEmail", ctx, existingCustomer.Email).Return(existingCustomer, nil)
-
-	err = service.Update(ctx, existingCustomer)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "email already registered")
-
-	// Test validation error
-	invalidCustomer := &domain.Customer{
-		ID: uuid.New(),
-	}
-	mockRepo.On("GetByEmail", ctx, invalidCustomer.Email).Return(nil, customErrors.ErrCustomerNotFound)
-
-	err = service.Update(ctx, invalidCustomer)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "customer name is required")
 }
 
 func TestCustomerService_Delete(t *testing.T) {
-	mockRepo := mocks.NewCustomerRepository(t)
-	service := NewCustomerService(mockRepo)
-	ctx := context.Background()
-
-	id := uuid.New().String()
-
-	// Test empty ID
-	err := service.Delete(ctx, "")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "customer ID is required")
-
-	// Test customer not found
-	mockRepo.On("GetByID", ctx, "non-existent").Return(nil, customErrors.ErrCustomerNotFound)
-	err = service.Delete(ctx, "non-existent")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to find customer")
-
-	// Test successful deletion
-	existingCustomer := &domain.Customer{
-		ID:    uuid.MustParse(id),
-		Name:  "John Doe",
-		Email: "john@example.com",
+	tests := []struct {
+		name          string
+		customerID    string
+		setupMocks    func(*mocks.CustomerRepository, string)
+		expectedError error
+	}{
+		{
+			name:       "Success - Delete Customer",
+			customerID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, customerID string) {
+				customer := &domain.Customer{
+					ID:     uuid.MustParse(customerID),
+					UserID: createTestUser().ID,
+				}
+				cr.On("GetByID", mock.Anything, customerID).Return(customer, nil)
+				cr.On("Delete", mock.Anything, customerID).Return(nil)
+			},
+			expectedError: nil,
+		},
+		{
+			name:          "Error - Empty CustomerID",
+			customerID:    "",
+			setupMocks:    func(cr *mocks.CustomerRepository, customerID string) {},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name:       "Error - Customer Not Found",
+			customerID: uuid.New().String(),
+			setupMocks: func(cr *mocks.CustomerRepository, customerID string) {
+				cr.On("GetByID", mock.Anything, customerID).Return(nil, customErrors.ErrCustomerNotFound)
+			},
+			expectedError: customErrors.ErrCustomerNotFound,
+		},
 	}
-	mockRepo.On("GetByID", ctx, id).Return(existingCustomer, nil)
-	mockRepo.On("Delete", ctx, id).Return(nil)
 
-	err = service.Delete(ctx, id)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, customerRepo, _ := setupCustomerTest(t)
+			tt.setupMocks(customerRepo, tt.customerID)
+
+			err := service.Delete(context.Background(), tt.customerID)
+
+			if tt.expectedError != nil {
+				assert.ErrorIs(t, err, tt.expectedError)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

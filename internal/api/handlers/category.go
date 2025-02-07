@@ -34,6 +34,16 @@ func (h *CategoryHandler) Routes() chi.Router {
 	return r
 }
 
+// @Summary Create a new category
+// @Description Create a new category with the provided data
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param category body domain.Category true "Category object"
+// @Success 201 {object} api.Response{data=domain.Category}
+// @Failure 400 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/categories [post]
 func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
@@ -54,6 +64,17 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, category, http.StatusCreated)
 }
 
+// @Summary Get a category by ID
+// @Description Get a category's details by its ID
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param id path string true "Category ID" format(uuid)
+// @Success 200 {object} api.Response{data=domain.Category}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/categories/{id} [get]
 func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -75,6 +96,14 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, category, http.StatusOK)
 }
 
+// @Summary List all categories
+// @Description Get a list of all categories
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Success 200 {object} api.Response{data=[]domain.Category}
+// @Failure 500 {object} api.Response
+// @Router /api/v1/categories [get]
 func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.service.List(r.Context())
 	if err != nil {
@@ -85,6 +114,17 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, categories, http.StatusOK)
 }
 
+// @Summary List subcategories
+// @Description Get all subcategories for a given parent category ID
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param id path string true "Parent Category ID" format(uuid)
+// @Success 200 {object} api.Response{data=[]domain.Category}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/categories/{id}/subcategories [get]
 func (h *CategoryHandler) ListByParentID(w http.ResponseWriter, r *http.Request) {
 	parentID := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(parentID); err != nil {
@@ -106,6 +146,18 @@ func (h *CategoryHandler) ListByParentID(w http.ResponseWriter, r *http.Request)
 	api.SuccessResponse(w, categories, http.StatusOK)
 }
 
+// @Summary Update a category
+// @Description Update an existing category's details
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param id path string true "Category ID" format(uuid)
+// @Param category body domain.Category true "Category object"
+// @Success 200 {object} api.Response{data=domain.Category}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/categories/{id} [put]
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -135,6 +187,17 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, category, http.StatusOK)
 }
 
+// @Summary Delete a category
+// @Description Delete a category by its ID
+// @Tags categories
+// @Accept json
+// @Produce json
+// @Param id path string true "Category ID" format(uuid)
+// @Success 204 {object} api.Response
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/categories/{id} [delete]
 func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {

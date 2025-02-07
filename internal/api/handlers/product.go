@@ -35,6 +35,16 @@ func (h *ProductHandler) Routes() chi.Router {
 	return r
 }
 
+// @Summary Create a new product
+// @Description Create a new product with the provided data
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param product body domain.Product true "Product object"
+// @Success 201 {object} api.Response{data=domain.Product}
+// @Failure 400 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products [post]
 func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var product domain.Product
 	if err := json.NewDecoder(r.Body).Decode(&product); err != nil {
@@ -57,6 +67,17 @@ func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, product, http.StatusCreated)
 }
 
+// @Summary Get a product by ID
+// @Description Get a product's details by its ID
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path string true "Product ID" format(uuid)
+// @Success 200 {object} api.Response{data=domain.Product}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products/{id} [get]
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -78,6 +99,14 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, product, http.StatusOK)
 }
 
+// @Summary List all products
+// @Description Get a list of all products
+// @Tags products
+// @Accept json
+// @Produce json
+// @Success 200 {object} api.Response{data=[]domain.Product}
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products [get]
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	products, err := h.service.List(r.Context())
 	if err != nil {
@@ -88,6 +117,17 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, products, http.StatusOK)
 }
 
+// @Summary List products by category
+// @Description Get all products in a specific category
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param categoryID path string true "Category ID" format(uuid)
+// @Success 200 {object} api.Response{data=[]domain.Product}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products/category/{categoryID} [get]
 func (h *ProductHandler) ListByCategoryID(w http.ResponseWriter, r *http.Request) {
 	categoryID := chi.URLParam(r, "categoryID")
 	if _, err := uuid.Parse(categoryID); err != nil {
@@ -109,6 +149,18 @@ func (h *ProductHandler) ListByCategoryID(w http.ResponseWriter, r *http.Request
 	api.SuccessResponse(w, products, http.StatusOK)
 }
 
+// @Summary Update a product
+// @Description Update an existing product's details
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path string true "Product ID" format(uuid)
+// @Param product body domain.Product true "Product object"
+// @Success 200 {object} api.Response{data=domain.Product}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products/{id} [put]
 func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -138,6 +190,18 @@ func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, product, http.StatusOK)
 }
 
+// @Summary Update product stock
+// @Description Update the stock quantity of a product
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path string true "Product ID" format(uuid)
+// @Param request body object true "Stock update request" schema(properties(quantity=integer))
+// @Success 200 {object} api.Response
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products/{id}/stock [put]
 func (h *ProductHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -168,6 +232,17 @@ func (h *ProductHandler) UpdateStock(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, nil, http.StatusOK)
 }
 
+// @Summary Delete a product
+// @Description Delete a product by its ID
+// @Tags products
+// @Accept json
+// @Produce json
+// @Param id path string true "Product ID" format(uuid)
+// @Success 204 {object} api.Response
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/products/{id} [delete]
 func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {

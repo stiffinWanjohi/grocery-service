@@ -10,9 +10,8 @@ DB_URL=postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?ssl
 migrate-create:
 	@read -p "Enter migration name: " name; \
 	migrate create -ext sql -dir $(MIGRATION_DIR) -seq $${name}; \
-	up_file=$$(find $(MIGRATION_DIR) -name "*_$${name}.up.sql"); \
-	mv $$up_file $${up_file%.up.sql}.sql; \
-	rm $(MIGRATION_DIR)/*_$${name}.down.sql
+	echo "Migration files created in $(MIGRATION_DIR):"; \
+	find $(MIGRATION_DIR) -name "*_$${name}.*.sql"
 
 migrate-up:
 	@if [ -z "$(steps)" ]; then \

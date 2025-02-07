@@ -5,14 +5,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/joho/godotenv"
+	"time"
 )
 
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	OAuth    OAuthConfig
 	SMTP     SMTPConfig
 	SMS      SMSConfig
 }
@@ -32,13 +32,14 @@ type DatabaseConfig struct {
 }
 
 type JWTConfig struct {
-	Secret string `env:"JWT_SECRET" required:"true"`
-	Issuer string `env:"JWT_ISSUER" default:"grocery-service"`
+	Secret        string        `env:"JWT_SECRET" required:"true"`
+	Issuer        string        `env:"JWT_ISSUER" default:"grocery-service"`
+	TokenDuration time.Duration `env:"JWT_TOKEN_DURATION" default:"24h"`
 }
 
 type SMTPConfig struct {
-	Host     string `env:"SMTP_HOST" default:"smtp.gmail.com"`
-	Port     int    `env:"SMTP_PORT" default:"587"`
+	Host     string `env:"SMTP_HOST" default:"smtp.resend.com"`
+	Port     int    `env:"SMTP_PORT" default:"465"`
 	Username string `env:"SMTP_USERNAME" required:"true"`
 	Password string `env:"SMTP_PASSWORD" required:"true"`
 	From     string `env:"SMTP_FROM" required:"true"`
@@ -53,12 +54,23 @@ type SMSConfig struct {
 	BaseURL     string `env:"SMS_BASE_URL" default:"https://api.africastalking.com/version1/messaging"`
 }
 
+type OAuthConfig struct {
+	ClientID          string   `env:"OAUTH_CLIENT_ID" required:"true"`
+	ClientSecret      string   `env:"OAUTH_CLIENT_SECRET" required:"true"`
+	RedirectURL       string   `env:"OAUTH_REDIRECT_URL" required:"true"`
+	AllowedUsers      []string `env:"OAUTH_ALLOWED_USERS"`
+	AllowedDomain     string   `env:"OAUTH_ALLOWED_DOMAIN"`
+	Scopes            []string `env:"OAUTH_SCOPES" default:"openid,profile,offline_access,user.read"`
+	ProviderURL       string   `env:"OAUTH_PROVIDER_URL" default:"https://login.microsoftonline.com/common"`
+	AuthorizeEndpoint string   `env:"OAUTH_AUTHORIZE_ENDPOINT" default:"/oauth2/v2.0/authorize"`
+	TokenEndpoint     string   `env:"OAUTH_TOKEN_ENDPOINT" default:"/oauth2/v2.0/token"`
+}
+
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("error loading .env file: %w", err)
-		}
-	}
+	cwd, _ := os.Getwd()
+	fmt.Printf("Current working directory: %s\n", cwd)
+
+	fmt.Println("Loading configuration from environment variables")
 
 	config := &Config{
 		Server: ServerConfig{
@@ -74,8 +86,9 @@ func Load() (*Config, error) {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
-			Secret: getEnv("JWT_SECRET", ""),
-			Issuer: getEnv("JWT_ISSUER", "grocery-service"),
+			Secret:        getEnv("JWT_SECRET", ""),
+			Issuer:        getEnv("JWT_ISSUER", "grocery-service"),
+			TokenDuration: getEnvAsDuration("JWT_TOKEN_DURATION", 24*time.Hour),
 		},
 		SMTP: SMTPConfig{
 			Host:     getEnv("SMTP_HOST", "smtp.gmail.com"),
@@ -91,6 +104,17 @@ func Load() (*Config, error) {
 			SenderID:    getEnv("SMS_SENDER_ID", "GROCERY"),
 			Environment: getEnv("SMS_ENVIRONMENT", "sandbox"),
 			BaseURL:     getEnv("SMS_BASE_URL", "https://api.africastalking.com/version1/messaging"),
+		},
+		OAuth: OAuthConfig{
+			ClientID:          getEnv("OAUTH_CLIENT_ID", ""),
+			ClientSecret:      getEnv("OAUTH_CLIENT_SECRET", ""),
+			RedirectURL:       getEnv("OAUTH_REDIRECT_URL", ""),
+			AllowedUsers:      getEnvAsStringSlice("OAUTH_ALLOWED_USERS", nil),
+			AllowedDomain:     getEnv("OAUTH_ALLOWED_DOMAIN", ""),
+			Scopes:            getEnvAsStringSlice("OAUTH_SCOPES", []string{"openid", "profile", "offline_access", "user.read"}),
+			ProviderURL:       getEnv("OAUTH_PROVIDER_URL", "https://login.microsoftonline.com/common"),
+			AuthorizeEndpoint: getEnv("OAUTH_AUTHORIZE_ENDPOINT", "/oauth2/v2.0/authorize"),
+			TokenEndpoint:     getEnv("OAUTH_TOKEN_ENDPOINT", "/oauth2/v2.0/token"),
 		},
 	}
 
@@ -133,6 +157,17 @@ func (c *Config) Validate() error {
 		errors = append(errors, "SMS username is required")
 	}
 
+	// OAuth validation
+	if c.OAuth.ClientID == "" {
+		errors = append(errors, "OAuth client ID is required")
+	}
+	if c.OAuth.ClientSecret == "" {
+		errors = append(errors, "OAuth client secret is required")
+	}
+	if c.OAuth.RedirectURL == "" {
+		errors = append(errors, "OAuth redirect URL is required")
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf("configuration validation failed:\n- %s", strings.Join(errors, "\n- "))
 	}
@@ -152,6 +187,22 @@ func getEnvAsInt(key string, defaultValue int) int {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			return intValue
 		}
+	}
+	return defaultValue
+}
+
+func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		if duration, err := time.ParseDuration(value); err == nil {
+			return duration
+		}
+	}
+	return defaultValue
+}
+
+func getEnvAsStringSlice(key string, defaultValue []string) []string {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		return strings.Split(value, ",")
 	}
 	return defaultValue
 }

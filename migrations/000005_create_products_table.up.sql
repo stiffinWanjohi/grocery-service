@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -12,8 +11,3 @@ CREATE TABLE products (
 
 CREATE INDEX idx_products_category_id ON products(category_id);
 CREATE INDEX idx_products_name ON products(name);
-
--- +migrate Down
-DROP INDEX IF EXISTS idx_products_name;
-DROP INDEX IF EXISTS idx_products_category_id;
-DROP TABLE IF EXISTS products;

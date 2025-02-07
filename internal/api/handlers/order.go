@@ -35,6 +35,16 @@ func (h *OrderHandler) Routes() chi.Router {
 	return r
 }
 
+// @Summary Create a new order
+// @Description Create a new order with the provided data
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param order body domain.Order true "Order object"
+// @Success 201 {object} api.Response{data=domain.Order}
+// @Failure 400 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders [post]
 func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var order domain.Order
 	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
@@ -57,6 +67,17 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, order, http.StatusCreated)
 }
 
+// @Summary Get an order by ID
+// @Description Get an order's details by its ID
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID" format(uuid)
+// @Success 200 {object} api.Response{data=domain.Order}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders/{id} [get]
 func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -78,6 +99,14 @@ func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, order, http.StatusOK)
 }
 
+// @Summary List all orders
+// @Description Get a list of all orders
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Success 200 {object} api.Response{data=[]domain.Order}
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders [get]
 func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
 	orders, err := h.service.List(r.Context())
 	if err != nil {
@@ -88,6 +117,17 @@ func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, orders, http.StatusOK)
 }
 
+// @Summary List customer orders
+// @Description Get all orders for a specific customer
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param customerID path string true "Customer ID" format(uuid)
+// @Success 200 {object} api.Response{data=[]domain.Order}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders/customer/{customerID} [get]
 func (h *OrderHandler) ListByCustomerID(w http.ResponseWriter, r *http.Request) {
 	customerID := chi.URLParam(r, "customerID")
 	if _, err := uuid.Parse(customerID); err != nil {
@@ -109,6 +149,18 @@ func (h *OrderHandler) ListByCustomerID(w http.ResponseWriter, r *http.Request) 
 	api.SuccessResponse(w, orders, http.StatusOK)
 }
 
+// @Summary Update order status
+// @Description Update the status of an existing order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID" format(uuid)
+// @Param status body object true "Status object" schema(properties(status=string))
+// @Success 200 {object} api.Response
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders/{id}/status [put]
 func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
@@ -139,6 +191,18 @@ func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, nil, http.StatusOK)
 }
 
+// @Summary Add order item
+// @Description Add a new item to an existing order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID" format(uuid)
+// @Param item body domain.OrderItem true "Order item object"
+// @Success 201 {object} api.Response{data=domain.OrderItem}
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders/{id}/items [post]
 func (h *OrderHandler) AddOrderItem(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(orderID); err != nil {
@@ -171,6 +235,18 @@ func (h *OrderHandler) AddOrderItem(w http.ResponseWriter, r *http.Request) {
 	api.SuccessResponse(w, item, http.StatusCreated)
 }
 
+// @Summary Remove order item
+// @Description Remove an item from an existing order
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Param id path string true "Order ID" format(uuid)
+// @Param itemID path string true "Item ID" format(uuid)
+// @Success 204 {object} api.Response
+// @Failure 400 {object} api.Response
+// @Failure 404 {object} api.Response
+// @Failure 500 {object} api.Response
+// @Router /api/v1/orders/{id}/items/{itemID} [delete]
 func (h *OrderHandler) RemoveOrderItem(w http.ResponseWriter, r *http.Request) {
 	orderID := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(orderID); err != nil {

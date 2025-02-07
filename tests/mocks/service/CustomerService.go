@@ -14,22 +14,34 @@ type CustomerService struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, customer
-func (_m *CustomerService) Create(ctx context.Context, customer *domain.Customer) error {
-	ret := _m.Called(ctx, customer)
+// Create provides a mock function with given fields: ctx, userID
+func (_m *CustomerService) Create(ctx context.Context, userID string) (*domain.Customer, error) {
+	ret := _m.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Customer) error); ok {
-		r0 = rf(ctx, customer)
+	var r0 *domain.Customer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Customer, error)); ok {
+		return rf(ctx, userID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Customer); ok {
+		r0 = rf(ctx, userID)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Customer)
+		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Delete provides a mock function with given fields: ctx, id
@@ -48,36 +60,6 @@ func (_m *CustomerService) Delete(ctx context.Context, id string) error {
 	}
 
 	return r0
-}
-
-// GetByEmail provides a mock function with given fields: ctx, email
-func (_m *CustomerService) GetByEmail(ctx context.Context, email string) (*domain.Customer, error) {
-	ret := _m.Called(ctx, email)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByEmail")
-	}
-
-	var r0 *domain.Customer
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Customer, error)); ok {
-		return rf(ctx, email)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Customer); ok {
-		r0 = rf(ctx, email)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Customer)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, email)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // GetByID provides a mock function with given fields: ctx, id
@@ -103,6 +85,36 @@ func (_m *CustomerService) GetByID(ctx context.Context, id string) (*domain.Cust
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetByUserID provides a mock function with given fields: ctx, userID
+func (_m *CustomerService) GetByUserID(ctx context.Context, userID string) (*domain.Customer, error) {
+	ret := _m.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByUserID")
+	}
+
+	var r0 *domain.Customer
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.Customer, error)); ok {
+		return rf(ctx, userID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.Customer); ok {
+		r0 = rf(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Customer)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, userID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -138,24 +150,6 @@ func (_m *CustomerService) List(ctx context.Context) ([]domain.Customer, error) 
 	}
 
 	return r0, r1
-}
-
-// Update provides a mock function with given fields: ctx, customer
-func (_m *CustomerService) Update(ctx context.Context, customer *domain.Customer) error {
-	ret := _m.Called(ctx, customer)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Update")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *domain.Customer) error); ok {
-		r0 = rf(ctx, customer)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // NewCustomerService creates a new instance of CustomerService. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

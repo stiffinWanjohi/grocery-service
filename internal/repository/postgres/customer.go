@@ -15,7 +15,7 @@ type (
 	CustomerRepository interface {
 		Create(ctx context.Context, customer *domain.Customer) error
 		GetByID(ctx context.Context, id string) (*domain.Customer, error)
-		GetByEmail(ctx context.Context, email string) (*domain.Customer, error)
+		GetByUserID(ctx context.Context, userID string) (*domain.Customer, error)
 		List(ctx context.Context) ([]domain.Customer, error)
 		Update(ctx context.Context, customer *domain.Customer) error
 		Delete(ctx context.Context, id string) error
@@ -43,7 +43,9 @@ func (r *CustomerRepositoryImpl) Create(ctx context.Context, customer *domain.Cu
 
 func (r *CustomerRepositoryImpl) GetByID(ctx context.Context, id string) (*domain.Customer, error) {
 	var customer domain.Customer
-	err := r.BaseRepository.GetDB().WithContext(ctx).First(&customer, "id = ?", id).Error
+	err := r.BaseRepository.GetDB().WithContext(ctx).
+		Preload("User").
+		First(&customer, "id = ?", id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customErrors.ErrCustomerNotFound
@@ -53,9 +55,12 @@ func (r *CustomerRepositoryImpl) GetByID(ctx context.Context, id string) (*domai
 	return &customer, nil
 }
 
-func (r *CustomerRepositoryImpl) GetByEmail(ctx context.Context, email string) (*domain.Customer, error) {
+func (r *CustomerRepositoryImpl) GetByUserID(ctx context.Context, userID string) (*domain.Customer, error) {
 	var customer domain.Customer
-	err := r.BaseRepository.GetDB().WithContext(ctx).Where("email = ?", email).First(&customer).Error
+	err := r.BaseRepository.GetDB().WithContext(ctx).
+		Preload("User").
+		Where("user_id = ?", userID).
+		First(&customer).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, customErrors.ErrCustomerNotFound
@@ -67,7 +72,9 @@ func (r *CustomerRepositoryImpl) GetByEmail(ctx context.Context, email string) (
 
 func (r *CustomerRepositoryImpl) List(ctx context.Context) ([]domain.Customer, error) {
 	var customers []domain.Customer
-	err := r.BaseRepository.GetDB().WithContext(ctx).Find(&customers).Error
+	err := r.BaseRepository.GetDB().WithContext(ctx).
+		Preload("User").
+		Find(&customers).Error
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", customErrors.ErrDBQuery, err)
 	}

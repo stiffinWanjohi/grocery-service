@@ -1,4 +1,3 @@
--- +migrate Up
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE categories (
@@ -12,7 +11,3 @@ CREATE TABLE categories (
 );
 
 CREATE INDEX idx_categories_parent_id ON categories(parent_id);
-
--- +migrate Down
-DROP INDEX IF EXISTS idx_categories_parent_id;
-DROP TABLE IF EXISTS categories;

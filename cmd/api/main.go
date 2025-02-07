@@ -20,14 +20,31 @@ import (
 	"github.com/grocery-service/internal/service/notification"
 )
 
+// @title           Grocery Service API
+// @version         1.0
+// @description     API for managing grocery store operations
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey bearerAuth
+// @in header
+// @name Authorization
+// @description Enter the token with the `Bearer ` prefix, e.g. "Bearer abcde12345".
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize database
 	database, err := db.NewPostgresDB(&cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
@@ -35,16 +52,21 @@ func main() {
 	defer database.Close()
 
 	// Initialize repositories
+	userRepo := postgres.NewUserRepository(database)
 	customerRepo := postgres.NewCustomerRepository(database)
 	productRepo := postgres.NewProductRepository(database)
 	categoryRepo := postgres.NewCategoryRepository(database)
 	orderRepo := postgres.NewOrderRepository(database)
-
-	// Initialize notification service
-	notificationService := initializeNotificationService(cfg)
+	tokenRepo := postgres.NewTokenRepository(database)
 
 	// Initialize services
-	customerService := service.NewCustomerService(customerRepo)
+	notificationService := initializeNotificationService(cfg)
+	authService := service.NewAuthService(
+		*cfg,
+		userRepo,
+		tokenRepo,
+	)
+	customerService := service.NewCustomerService(customerRepo, userRepo)
 	productService := service.NewProductService(productRepo, categoryRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
 	orderService := service.NewOrderService(
@@ -56,6 +78,7 @@ func main() {
 
 	// Initialize API handlers
 	handlers := initializeHandlers(
+		authService,
 		customerService,
 		productService,
 		categoryService,
@@ -64,21 +87,27 @@ func main() {
 
 	// Initialize router with middleware
 	router := api.NewRouter(
+		handlers.authHandler,
 		handlers.customerHandler,
 		handlers.productHandler,
 		handlers.categoryHandler,
 		handlers.orderHandler,
 		middleware.AuthConfig{
-			JWTSecret: cfg.JWT.Secret,
-			Issuer:    cfg.JWT.Issuer,
+			JWTSecret:     cfg.JWT.Secret,
+			Issuer:        cfg.JWT.Issuer,
+			ClientID:      cfg.OAuth.ClientID,
+			ClientSecret:  cfg.OAuth.ClientSecret,
+			RedirectURL:   cfg.OAuth.RedirectURL,
+			AllowedUsers:  cfg.OAuth.AllowedUsers,
+			TokenDuration: cfg.JWT.TokenDuration,
 		},
 	)
 
-	// Start server
 	startServer(router, cfg.Server.Port)
 }
 
 type handlers struct {
+	authHandler     *handler.AuthHandler
 	customerHandler *handler.CustomerHandler
 	productHandler  *handler.ProductHandler
 	categoryHandler *handler.CategoryHandler
@@ -95,12 +124,14 @@ func initializeNotificationService(cfg *config.Config) notification.Notification
 }
 
 func initializeHandlers(
+	authService service.AuthService,
 	customerService service.CustomerService,
 	productService service.ProductService,
 	categoryService service.CategoryService,
 	orderService service.OrderService,
 ) *handlers {
 	return &handlers{
+		authHandler:     handler.NewAuthHandler(authService),
 		customerHandler: handler.NewCustomerHandler(customerService),
 		productHandler:  handler.NewProductHandler(productService),
 		categoryHandler: handler.NewCategoryHandler(categoryService),
@@ -117,7 +148,6 @@ func startServer(handler http.Handler, port int) {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in a goroutine
 	go func() {
 		log.Printf("Server starting on port %d", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -125,13 +155,11 @@ func startServer(handler http.Handler, port int) {
 		}
 	}()
 
-	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
 
-	// Graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

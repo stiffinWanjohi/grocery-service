@@ -26,13 +26,25 @@ func NewSMSService(config config.SMSConfig) *SMSService {
 }
 
 func (s *SMSService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
-	message := fmt.Sprintf("Order #%s confirmed. Total: %.2f. Thank you for your order!", order.ID, order.TotalPrice)
-	return s.sendSMS(ctx, order.Customer.Phone, message)
+	message := fmt.Sprintf(
+		"Hi %s, Order #%s confirmed. Total: %.2f. Delivery to: %s. Thank you for your order!",
+		order.Customer.User.Name,
+		order.ID,
+		order.TotalPrice,
+		order.Customer.User.Address,
+	)
+	return s.sendSMS(ctx, order.Customer.User.Phone, message)
 }
 
 func (s *SMSService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
-	message := fmt.Sprintf("Order #%s status updated to: %s", order.ID, order.Status)
-	return s.sendSMS(ctx, order.Customer.Phone, message)
+	message := fmt.Sprintf(
+		"Hi %s, Order #%s status updated to: %s. Delivery to: %s",
+		order.Customer.User.Name,
+		order.ID,
+		order.Status,
+		order.Customer.User.Address,
+	)
+	return s.sendSMS(ctx, order.Customer.User.Phone, message)
 }
 
 func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {

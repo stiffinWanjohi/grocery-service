@@ -23,13 +23,13 @@ func NewEmailService(config config.SMTPConfig) *EmailService {
 func (s *EmailService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
 	subject := fmt.Sprintf("Order Confirmation #%s", order.ID)
 	body := s.generateOrderConfirmationEmail(order)
-	return s.SendEmail(ctx, order.Customer.Email, subject, body)
+	return s.SendEmail(ctx, order.Customer.User.Email, subject, body)
 }
 
 func (s *EmailService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
 	subject := fmt.Sprintf("Order Status Update #%s", order.ID)
 	body := s.generateOrderStatusUpdateEmail(order)
-	return s.SendEmail(ctx, order.Customer.Email, subject, body)
+	return s.SendEmail(ctx, order.Customer.User.Email, subject, body)
 }
 
 func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) error {
@@ -70,6 +70,8 @@ func (s *EmailService) generateOrderConfirmationEmail(order *domain.Order) strin
 		<p>Thank you for your order. Here are your order details:</p>
 		<p><strong>Order ID:</strong> %s</p>
 		<p><strong>Total Amount:</strong> %.2f</p>
+		<p><strong>Delivery Address:</strong> %s</p>
+		<p><strong>Contact Phone:</strong> %s</p>
 		<h3>Order Items:</h3>
 		<ul>
 	`
@@ -85,7 +87,13 @@ func (s *EmailService) generateOrderConfirmationEmail(order *domain.Order) strin
 		<p>Best regards,<br>Grocery Service Team</p>
 	`
 
-	return fmt.Sprintf(template, order.Customer.Name, order.ID, order.TotalPrice) + itemsList + footer
+	return fmt.Sprintf(template,
+		order.Customer.User.Name,
+		order.ID,
+		order.TotalPrice,
+		order.Customer.User.Address,
+		order.Customer.User.Phone,
+	) + itemsList + footer
 }
 
 func (s *EmailService) generateOrderStatusUpdateEmail(order *domain.Order) string {
@@ -95,8 +103,16 @@ func (s *EmailService) generateOrderStatusUpdateEmail(order *domain.Order) strin
 		<p>Your order status has been updated:</p>
 		<p><strong>Order ID:</strong> %s</p>
 		<p><strong>New Status:</strong> %s</p>
+		<p><strong>Delivery Address:</strong> %s</p>
+		<p><strong>Contact Phone:</strong> %s</p>
 		<p>If you have any questions, please contact our support team.</p>
 		<p>Best regards,<br>Grocery Service Team</p>
 	`
-	return fmt.Sprintf(template, order.Customer.Name, order.ID, order.Status)
+	return fmt.Sprintf(template,
+		order.Customer.User.Name,
+		order.ID,
+		order.Status,
+		order.Customer.User.Address,
+		order.Customer.User.Phone,
+	)
 }
