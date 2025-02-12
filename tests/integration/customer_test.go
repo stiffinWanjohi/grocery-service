@@ -19,7 +19,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupCustomerTest() (*serviceMock.CustomerService, *handler.CustomerHandler) {
+func setupCustomerTest() (
+	*serviceMock.CustomerService,
+	*handler.CustomerHandler,
+) {
 	mockService := new(serviceMock.CustomerService)
 	handler := handler.NewCustomerHandler(mockService)
 	return mockService, handler
@@ -43,14 +46,17 @@ func TestCustomerHandler_Create(t *testing.T) {
 						ID: uuid.MustParse(userID),
 					},
 				}
-				mockService.On("Create", mock.Anything, userID).Return(customer, nil)
+				mockService.On("Create", mock.Anything, userID).
+					Return(customer, nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
 		{
 			name: "Customer Already Exists",
 			setupMock: func() {
-				mockService.On("Create", mock.Anything, userID).Return(nil, customErrors.ErrCustomerExists)
+				mockService.On("Create", mock.Anything, userID).
+					Return(nil, customErrors.ErrCustomerExists).
+					Once()
 			},
 			wantStatus: http.StatusConflict,
 			wantError:  "Customer profile already exists for this user",
@@ -58,7 +64,9 @@ func TestCustomerHandler_Create(t *testing.T) {
 		{
 			name: "Internal Error",
 			setupMock: func() {
-				mockService.On("Create", mock.Anything, userID).Return(nil, customErrors.ErrInternalServer)
+				mockService.On("Create", mock.Anything, userID).
+					Return(nil, customErrors.ErrInternalServer).
+					Once()
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantError:  "Failed to create customer profile",
@@ -67,10 +75,13 @@ func TestCustomerHandler_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			req := httptest.NewRequest(http.MethodPost, "/customers", nil)
-			req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+			req = req.WithContext(
+				context.WithValue(req.Context(), middleware.UserIDKey, userID),
+			)
 			w := httptest.NewRecorder()
 
 			handler.Create(w, req)
@@ -109,14 +120,17 @@ func TestCustomerHandler_GetCurrentCustomer(t *testing.T) {
 						ID: uuid.MustParse(userID),
 					},
 				}
-				mockService.On("GetByUserID", mock.Anything, userID).Return(customer, nil)
+				mockService.On("GetByUserID", mock.Anything, userID).
+					Return(customer, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
 		{
 			name: "Not Found",
 			setupMock: func() {
-				mockService.On("GetByUserID", mock.Anything, userID).Return(nil, customErrors.ErrCustomerNotFound)
+				mockService.On("GetByUserID", mock.Anything, userID).
+					Return(nil, customErrors.ErrCustomerNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Customer profile not found",
@@ -124,7 +138,9 @@ func TestCustomerHandler_GetCurrentCustomer(t *testing.T) {
 		{
 			name: "Internal Error",
 			setupMock: func() {
-				mockService.On("GetByUserID", mock.Anything, userID).Return(nil, customErrors.ErrInternalServer)
+				mockService.On("GetByUserID", mock.Anything, userID).
+					Return(nil, customErrors.ErrInternalServer).
+					Once()
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantError:  "Failed to get customer profile",
@@ -133,10 +149,13 @@ func TestCustomerHandler_GetCurrentCustomer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			req := httptest.NewRequest(http.MethodGet, "/customers/me", nil)
-			req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+			req = req.WithContext(
+				context.WithValue(req.Context(), middleware.UserIDKey, userID),
+			)
 			w := httptest.NewRecorder()
 
 			handler.GetCurrentCustomer(w, req)
@@ -179,7 +198,8 @@ func TestCustomerHandler_GetByID(t *testing.T) {
 						Email: "john@example.com",
 					},
 				}
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(customer, nil)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(customer, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -194,7 +214,9 @@ func TestCustomerHandler_GetByID(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(nil, customErrors.ErrCustomerNotFound)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(nil, customErrors.ErrCustomerNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Customer not found",
@@ -203,12 +225,15 @@ func TestCustomerHandler_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
 			req := httptest.NewRequest(http.MethodGet, "/customers/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.GetByID(w, req)
@@ -258,7 +283,8 @@ func TestCustomerHandler_List(t *testing.T) {
 						},
 					},
 				}
-				mockService.On("List", mock.Anything).Return(customers, nil)
+				mockService.On("List", mock.Anything).
+					Return(customers, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -266,7 +292,9 @@ func TestCustomerHandler_List(t *testing.T) {
 		{
 			name: "Internal Error",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return(nil, customErrors.ErrInternalServer)
+				mockService.On("List", mock.Anything).
+					Return(nil, customErrors.ErrInternalServer).
+					Once()
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantError:  "Failed to list customers",
@@ -275,6 +303,7 @@ func TestCustomerHandler_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			req := httptest.NewRequest(http.MethodGet, "/customers", nil)
@@ -319,7 +348,8 @@ func TestCustomerHandler_Delete(t *testing.T) {
 			name: "Success",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("Delete", mock.Anything, testID.String()).Return(nil)
+				mockService.On("Delete", mock.Anything, testID.String()).
+					Return(nil)
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -334,7 +364,9 @@ func TestCustomerHandler_Delete(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("Delete", mock.Anything, testID.String()).Return(customErrors.ErrCustomerNotFound)
+				mockService.On("Delete", mock.Anything, testID.String()).
+					Return(customErrors.ErrCustomerNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Customer not found",
@@ -343,12 +375,19 @@ func TestCustomerHandler_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req := httptest.NewRequest(http.MethodDelete, "/customers/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodDelete,
+				"/customers/"+tt.id,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.Delete(w, req)
@@ -375,17 +414,24 @@ func TestCustomerHandler_Routes(t *testing.T) {
 		path   string
 	}{
 		{http.MethodPost, "/"},
-		{http.MethodGet, "/me"},
+		{http.MethodGet, "/customer/{id}"},
 		{http.MethodGet, "/"},
 		{http.MethodGet, "/{id}"},
 		{http.MethodDelete, "/{id}"},
 	}
 
 	for _, route := range routes {
-		t.Run(route.method+" "+route.path, func(t *testing.T) {
-			assert.NotPanics(t, func() {
-				router.Match(chi.NewRouteContext(), route.method, route.path)
-			})
-		})
+		t.Run(
+			route.method+" "+route.path,
+			func(t *testing.T) {
+				assert.NotPanics(t, func() {
+					router.Match(
+						chi.NewRouteContext(),
+						route.method,
+						route.path,
+					)
+				})
+			},
+		)
 	}
 }

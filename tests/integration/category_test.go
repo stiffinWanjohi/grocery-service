@@ -20,7 +20,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupCategoryTest() (*serviceMock.CategoryService, *handler.CategoryHandler) {
+func setupCategoryTest() (
+	*serviceMock.CategoryService,
+	*handler.CategoryHandler,
+) {
 	mockService := new(serviceMock.CategoryService)
 	handler := handler.NewCategoryHandler(mockService)
 	return mockService, handler
@@ -44,8 +47,10 @@ func TestCategoryHandler_Create(t *testing.T) {
 			},
 			setupMock: func(c *domain.Category) {
 				mockService.On("Create", mock.Anything, mock.MatchedBy(func(cat *domain.Category) bool {
-					return cat.Name == c.Name && cat.Description == c.Description
-				})).Return(nil)
+					return cat.Name == c.Name &&
+						cat.Description == c.Description
+				})).
+					Return(nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -57,10 +62,12 @@ func TestCategoryHandler_Create(t *testing.T) {
 			setupMock: func(c *domain.Category) {
 				mockService.On("Create", mock.Anything, mock.MatchedBy(func(cat *domain.Category) bool {
 					return cat.Name == c.Name
-				})).Return(customErrors.ErrInvalidCategoryData)
+				})).
+					Return(customErrors.ErrInvalidCategoryData).
+					Once()
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid category data",
+			wantError:  "invalid category data",
 		},
 	}
 
@@ -69,7 +76,11 @@ func TestCategoryHandler_Create(t *testing.T) {
 			tt.setupMock(tt.category)
 
 			jsonBody, _ := json.Marshal(tt.category)
-			req := httptest.NewRequest(http.MethodPost, "/categories", bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/categories",
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -113,11 +124,12 @@ func TestCategoryHandler_GetByID(t *testing.T) {
 			name: "Success",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(&domain.Category{
-					ID:          testID,
-					Name:        "Vegetables",
-					Description: "Fresh vegetables category",
-				}, nil)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(&domain.Category{
+						ID:          testID,
+						Name:        "Vegetables",
+						Description: "Fresh vegetables category",
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -132,7 +144,9 @@ func TestCategoryHandler_GetByID(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(nil, customErrors.ErrCategoryNotFound)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(nil, customErrors.ErrCategoryNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Category not found",
@@ -141,12 +155,19 @@ func TestCategoryHandler_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req := httptest.NewRequest(http.MethodGet, "/categories/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/categories/"+tt.id,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.GetByID(w, req)
@@ -180,18 +201,19 @@ func TestCategoryHandler_List(t *testing.T) {
 		{
 			name: "Success",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return([]domain.Category{
-					{
-						ID:          uuid.New(),
-						Name:        "Fruits",
-						Description: "Fresh fruits",
-					},
-					{
-						ID:          uuid.New(),
-						Name:        "Vegetables",
-						Description: "Fresh vegetables",
-					},
-				}, nil)
+				mockService.On("List", mock.Anything).
+					Return([]domain.Category{
+						{
+							ID:          uuid.New(),
+							Name:        "Fruits",
+							Description: "Fresh fruits",
+						},
+						{
+							ID:          uuid.New(),
+							Name:        "Vegetables",
+							Description: "Fresh vegetables",
+						},
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -199,7 +221,9 @@ func TestCategoryHandler_List(t *testing.T) {
 		{
 			name: "Internal Error",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return(nil, fmt.Errorf("database error"))
+				mockService.On("List", mock.Anything).
+					Return(nil, fmt.Errorf("database error")).
+					Once()
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantError:  "Failed to list categories",
@@ -208,6 +232,7 @@ func TestCategoryHandler_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			req := httptest.NewRequest(http.MethodGet, "/categories", nil)
@@ -258,7 +283,8 @@ func TestCategoryHandler_Update(t *testing.T) {
 				Description: "Updated fruits category",
 			},
 			setupMock: func() {
-				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Category")).Return(nil)
+				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Category")).
+					Return(nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -271,7 +297,9 @@ func TestCategoryHandler_Update(t *testing.T) {
 				Description: "Updated fruits category",
 			},
 			setupMock: func() {
-				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Category")).Return(customErrors.ErrCategoryNotFound)
+				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Category")).
+					Return(customErrors.ErrCategoryNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Category not found",
@@ -280,15 +308,23 @@ func TestCategoryHandler_Update(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			jsonBody, _ := json.Marshal(tt.category)
-			req := httptest.NewRequest(http.MethodPut, "/categories/"+tt.id, bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPut,
+				"/categories/"+tt.id,
+				bytes.NewBuffer(jsonBody),
+			)
+
 			req.Header.Set("Content-Type", "application/json")
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 
 			w := httptest.NewRecorder()
 
@@ -325,7 +361,8 @@ func TestCategoryHandler_Delete(t *testing.T) {
 			name: "Success",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("Delete", mock.Anything, testID.String()).Return(nil)
+				mockService.On("Delete", mock.Anything, testID.String()).
+					Return(nil)
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -333,7 +370,9 @@ func TestCategoryHandler_Delete(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("Delete", mock.Anything, testID.String()).Return(customErrors.ErrCategoryNotFound)
+				mockService.On("Delete", mock.Anything, testID.String()).
+					Return(customErrors.ErrCategoryNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Category not found",
@@ -342,12 +381,19 @@ func TestCategoryHandler_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req := httptest.NewRequest(http.MethodDelete, "/categories/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodDelete,
+				"/categories/"+tt.id,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.Delete(w, req)
@@ -381,20 +427,21 @@ func TestCategoryHandler_ListByParentID(t *testing.T) {
 			name: "Success",
 			id:   parentID.String(),
 			setupMock: func() {
-				mockService.On("ListByParentID", mock.Anything, parentID.String()).Return([]domain.Category{
-					{
-						ID:          uuid.New(),
-						Name:        "Green Fruits",
-						Description: "All green fruits",
-						ParentID:    &parentID,
-					},
-					{
-						ID:          uuid.New(),
-						Name:        "Red Fruits",
-						Description: "All red fruits",
-						ParentID:    &parentID,
-					},
-				}, nil)
+				mockService.On("ListByParentID", mock.Anything, parentID.String()).
+					Return([]domain.Category{
+						{
+							ID:          uuid.New(),
+							Name:        "Green Fruits",
+							Description: "All green fruits",
+							ParentID:    &parentID,
+						},
+						{
+							ID:          uuid.New(),
+							Name:        "Red Fruits",
+							Description: "All red fruits",
+							ParentID:    &parentID,
+						},
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -404,27 +451,36 @@ func TestCategoryHandler_ListByParentID(t *testing.T) {
 			id:         "invalid-uuid",
 			setupMock:  func() {},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid category ID",
+			wantError:  "Invalid parent category ID",
 		},
 		{
 			name: "Not Found",
 			id:   parentID.String(),
 			setupMock: func() {
-				mockService.On("ListByParentID", mock.Anything, parentID.String()).Return(nil, customErrors.ErrCategoryNotFound)
+				mockService.On("ListByParentID", mock.Anything, parentID.String()).
+					Return(nil, customErrors.ErrCategoryNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
-			wantError:  "Category not found",
+			wantError:  "Parent category not found",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req := httptest.NewRequest(http.MethodGet, "/categories/"+tt.id+"/subcategories", nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/categories/"+tt.id+"/subcategories",
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.ListByParentID(w, req)

@@ -6,14 +6,12 @@ import (
 	"log"
 )
 
-// ErrorResponse represents a structured error response
 type ErrorResponse struct {
 	Error   error
 	Message string
 	Code    string
 }
 
-// Application Error Codes
 const (
 	// Authentication Errors
 	ErrCodeInvalidCredentials = "AUTH001"
@@ -60,12 +58,14 @@ const (
 // Pre-defined application errors
 var (
 	// Authentication Errors
-	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrTokenExpired       = errors.New("token has expired")
-	ErrInvalidToken       = errors.New("invalid token")
-	ErrUnauthorized       = errors.New("unauthorized access")
-	ErrTokenNotFound      = errors.New("token not found")
-	ErrTokenRevoked       = errors.New("token has been revoked")
+	ErrInvalidCredentials = errors.New(
+		"invalid credentials",
+	)
+	ErrTokenExpired  = errors.New("token has expired")
+	ErrInvalidToken  = errors.New("invalid token")
+	ErrUnauthorized  = errors.New("unauthorized access")
+	ErrTokenNotFound = errors.New("token not found")
+	ErrTokenRevoked  = errors.New("token has been revoked")
 
 	// Customer Errors
 	ErrCustomerNotFound    = errors.New("customer not found")
@@ -79,8 +79,9 @@ var (
 	ErrProductUnavailable = errors.New("product is unavailable")
 
 	// Order Errors
-	ErrOrderNotFound        = errors.New("order not found")
-	ErrInvalidOrderData     = errors.New("invalid order data")
+	ErrOrderNotFound    = errors.New("order not found")
+	ErrInvalidOrderData = errors.New("invalid order data")
+
 	ErrOrderStatusInvalid   = errors.New("invalid order status")
 	ErrEmptyOrder           = errors.New("order is empty")
 	ErrOrderItemNotFound    = errors.New("order item not found")
@@ -96,15 +97,17 @@ var (
 	ErrInvalidUserData = errors.New("invalid user data")
 
 	// Database Errors
-	ErrDBConnection = errors.New("database connection error")
-	ErrDBQuery      = errors.New("database query error")
-	ErrDBDuplicate  = errors.New("duplicate entry in database")
-
+	ErrDBConnection   = errors.New("database connection error")
+	ErrDBQuery        = errors.New("database query error")
+	ErrDBDuplicate    = errors.New("duplicate entry in database")
 	ErrInternalServer = errors.New("internal server error")
 )
 
-// LogError logs an error and returns an ErrorResponse
-func LogError(err error, message string, code string) ErrorResponse {
+func LogError(
+	err error,
+	message string,
+	code string,
+) ErrorResponse {
 	log.Printf("Error [%s]: %v - %s", code, err, message)
 	return ErrorResponse{
 		Error:   err,
@@ -113,12 +116,10 @@ func LogError(err error, message string, code string) ErrorResponse {
 	}
 }
 
-// WrapError wraps an error with additional context
 func WrapError(err error, message string) error {
 	return fmt.Errorf("%s: %w", message, err)
 }
 
-// IsNotFound checks if the error is a not found error
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrCustomerNotFound) ||
 		errors.Is(err, ErrProductNotFound) ||
@@ -128,13 +129,11 @@ func IsNotFound(err error) bool {
 		errors.Is(err, ErrUserNotFound)
 }
 
-// IsDuplicate checks if the error is a duplicate error
 func IsDuplicate(err error) bool {
 	return errors.Is(err, ErrDuplicateEmail) ||
 		errors.Is(err, ErrDBDuplicate)
 }
 
-// IsValidationError checks if the error is a validation error
 func IsValidationError(err error) bool {
 	return errors.Is(err, ErrInvalidCustomerData) ||
 		errors.Is(err, ErrInvalidProductData) ||
@@ -143,7 +142,6 @@ func IsValidationError(err error) bool {
 		errors.Is(err, ErrInvalidUserData)
 }
 
-// IsAuthenticationError checks if the error is an authentication error
 func IsAuthenticationError(err error) bool {
 	return errors.Is(err, ErrInvalidCredentials) ||
 		errors.Is(err, ErrTokenExpired) ||

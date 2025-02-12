@@ -1,0 +1,21 @@
+linters:
+  enable:
+    - gofmt
+    - gofumpt
+    - revive
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+
+linters-settings:
+  gofmt:
+    simplify: true
+  revive:
+    rules:
+      - name: line-length-limit
+        arguments: [120]
+
+run:
+  timeout: 5m

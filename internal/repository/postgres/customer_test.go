@@ -6,37 +6,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/grocery-service/internal/domain"
-	"github.com/grocery-service/internal/repository/db"
 	customErrors "github.com/grocery-service/utils/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
-
-func setupCustomerTestDB(t *testing.T) *db.PostgresDB {
-	postgres, err := db.NewTestDB()
-	require.NoError(t, err)
-
-	err = postgres.DB.Migrator().DropTable(&domain.Customer{}, &domain.User{})
-	require.NoError(t, err)
-	err = postgres.DB.AutoMigrate(&domain.User{}, &domain.Customer{})
-	require.NoError(t, err)
-
-	return postgres
-}
-
-func createTestUser(t *testing.T, db *gorm.DB) *domain.User {
-	user := &domain.User{
-		ID:      uuid.New(),
-		Email:   "test@example.com",
-		Name:    "Test User",
-		Role:    domain.CustomerRole,
-		Picture: "https://example.com/picture.jpg",
-	}
-	err := db.Create(user).Error
-	require.NoError(t, err)
-	return user
-}
 
 func TestCustomerRepository_Create(t *testing.T) {
 	tests := []struct {
@@ -57,10 +31,31 @@ func TestCustomerRepository_Create(t *testing.T) {
 		},
 		{
 			name: "Error - Invalid User ID",
-			setupTest: func(db *gorm.DB) *domain.Customer {
+			setupTest: func(_ *gorm.DB) *domain.Customer {
 				return &domain.Customer{
 					ID:     uuid.New(),
-					UserID: uuid.New(), // Non-existent user ID
+					UserID: uuid.New(),
+				}
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name: "Error - Empty User ID",
+			setupTest: func(_ *gorm.DB) *domain.Customer {
+				return &domain.Customer{
+					ID:     uuid.New(),
+					UserID: uuid.UUID{},
+				}
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name: "Error - Empty Customer ID",
+			setupTest: func(db *gorm.DB) *domain.Customer {
+				user := createTestUser(t, db)
+				return &domain.Customer{
+					ID:     uuid.UUID{},
+					UserID: user.ID,
 				}
 			},
 			expectedError: customErrors.ErrInvalidCustomerData,
@@ -69,7 +64,7 @@ func TestCustomerRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			postgres := setupCustomerTestDB(t)
+			postgres := setupTestDB(t, &domain.Customer{}, &domain.User{})
 			repo := NewCustomerRepository(postgres)
 			ctx := context.Background()
 
@@ -112,16 +107,23 @@ func TestCustomerRepository_GetByID(t *testing.T) {
 		},
 		{
 			name: "Error - Customer Not Found",
-			setupTest: func(db *gorm.DB) (string, *domain.Customer) {
+			setupTest: func(_ *gorm.DB) (string, *domain.Customer) {
 				return uuid.New().String(), nil
 			},
 			expectedError: customErrors.ErrCustomerNotFound,
+		},
+		{
+			name: "Error - Invalid UUID",
+			setupTest: func(_ *gorm.DB) (string, *domain.Customer) {
+				return "invalid-uuid", nil
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			postgres := setupCustomerTestDB(t)
+			postgres := setupTestDB(t, &domain.Customer{}, &domain.User{})
 			repo := NewCustomerRepository(postgres)
 			ctx := context.Background()
 
@@ -162,16 +164,23 @@ func TestCustomerRepository_GetByUserID(t *testing.T) {
 		},
 		{
 			name: "Error - No Customer For UserID",
-			setupTest: func(db *gorm.DB) (string, *domain.Customer) {
+			setupTest: func(_ *gorm.DB) (string, *domain.Customer) {
 				return uuid.New().String(), nil
 			},
 			expectedError: customErrors.ErrCustomerNotFound,
+		},
+		{
+			name: "Error - Invalid UUID Format",
+			setupTest: func(_ *gorm.DB) (string, *domain.Customer) {
+				return "invalid-uuid", nil
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			postgres := setupCustomerTestDB(t)
+			postgres := setupTestDB(t, &domain.Customer{}, &domain.User{})
 			repo := NewCustomerRepository(postgres)
 			ctx := context.Background()
 
@@ -201,8 +210,14 @@ func TestCustomerRepository_List(t *testing.T) {
 			name: "Success - List Multiple Customers",
 			setupTest: func(db *gorm.DB) []domain.Customer {
 				customers := []domain.Customer{
-					{ID: uuid.New(), UserID: createTestUser(t, db).ID},
-					{ID: uuid.New(), UserID: createTestUser(t, db).ID},
+					{
+						ID:     uuid.New(),
+						UserID: createTestUser(t, db).ID,
+					},
+					{
+						ID:     uuid.New(),
+						UserID: createTestUser(t, db).ID,
+					},
 				}
 				for _, c := range customers {
 					require.NoError(t, db.Create(&c).Error)
@@ -213,7 +228,7 @@ func TestCustomerRepository_List(t *testing.T) {
 		},
 		{
 			name: "Success - Empty List",
-			setupTest: func(db *gorm.DB) []domain.Customer {
+			setupTest: func(_ *gorm.DB) []domain.Customer {
 				return []domain.Customer{}
 			},
 			expectedCount: 0,
@@ -222,7 +237,7 @@ func TestCustomerRepository_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			postgres := setupCustomerTestDB(t)
+			postgres := setupTestDB(t, &domain.Customer{}, &domain.User{})
 			repo := NewCustomerRepository(postgres)
 			ctx := context.Background()
 
@@ -265,17 +280,68 @@ func TestCustomerRepository_Update(t *testing.T) {
 		},
 		{
 			name: "Error - Customer Not Found",
-			setupTest: func(db *gorm.DB) *domain.Customer {
-				return &domain.Customer{ID: uuid.New()}
+			setupTest: func(_ *gorm.DB) *domain.Customer {
+				return &domain.Customer{
+					ID:     uuid.New(),
+					UserID: uuid.New(),
+				}
 			},
-			updateFunc:    func(db *gorm.DB, c *domain.Customer) {},
+			updateFunc: func(db *gorm.DB, c *domain.Customer) {
+				user := createTestUser(t, db)
+				c.UserID = user.ID
+			},
 			expectedError: customErrors.ErrCustomerNotFound,
+		},
+		{
+			name: "Error - Invalid UUID",
+			setupTest: func(_ *gorm.DB) *domain.Customer {
+				return &domain.Customer{
+					ID:     uuid.New(),
+					UserID: uuid.New(),
+				}
+			},
+			updateFunc: func(_ *gorm.DB, c *domain.Customer) {
+				c.ID = uuid.UUID{} // Invalid UUID
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name: "Error - Invalid User ID",
+			setupTest: func(db *gorm.DB) *domain.Customer {
+				user := createTestUser(t, db)
+				customer := &domain.Customer{
+					ID:     uuid.New(),
+					UserID: user.ID,
+				}
+				require.NoError(t, db.Create(customer).Error)
+				return customer
+			},
+			updateFunc: func(_ *gorm.DB, c *domain.Customer) {
+				c.UserID = uuid.UUID{} // Invalid User ID
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
+		},
+		{
+			name: "Error - Non-Existent User ID",
+			setupTest: func(db *gorm.DB) *domain.Customer {
+				user := createTestUser(t, db)
+				customer := &domain.Customer{
+					ID:     uuid.New(),
+					UserID: user.ID,
+				}
+				require.NoError(t, db.Create(customer).Error)
+				return customer
+			},
+			updateFunc: func(_ *gorm.DB, c *domain.Customer) {
+				c.UserID = uuid.New() // Valid UUID format but non-existent user
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			postgres := setupCustomerTestDB(t)
+			postgres := setupTestDB(t, &domain.Customer{}, &domain.User{})
 			repo := NewCustomerRepository(postgres)
 			ctx := context.Background()
 
@@ -318,16 +384,23 @@ func TestCustomerRepository_Delete(t *testing.T) {
 		},
 		{
 			name: "Error - Customer Not Found",
-			setupTest: func(db *gorm.DB) string {
+			setupTest: func(_ *gorm.DB) string {
 				return uuid.New().String()
 			},
 			expectedError: customErrors.ErrCustomerNotFound,
+		},
+		{
+			name: "Error - Invalid UUID",
+			setupTest: func(_ *gorm.DB) string {
+				return "invalid-uuid"
+			},
+			expectedError: customErrors.ErrInvalidCustomerData,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			postgres := setupCustomerTestDB(t)
+			postgres := setupTestDB(t, &domain.Customer{}, &domain.User{})
 			repo := NewCustomerRepository(postgres)
 			ctx := context.Background()
 
@@ -336,6 +409,15 @@ func TestCustomerRepository_Delete(t *testing.T) {
 
 			if tt.expectedError != nil {
 				assert.ErrorIs(t, err, tt.expectedError)
+				// Skip database check for invalid UUID case
+				if tt.name != "Error - Invalid UUID" {
+					err = postgres.DB.First(
+						&domain.Customer{},
+						"id = ?",
+						id,
+					).Error
+					assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+				}
 			} else {
 				assert.NoError(t, err)
 				err = postgres.DB.First(&domain.Customer{}, "id = ?", id).Error

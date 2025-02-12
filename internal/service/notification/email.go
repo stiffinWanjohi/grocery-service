@@ -14,32 +14,67 @@ type EmailService struct {
 	config config.SMTPConfig
 }
 
-func NewEmailService(config config.SMTPConfig) *EmailService {
+func NewEmailService(
+	config config.SMTPConfig,
+) *EmailService {
 	return &EmailService{
 		config: config,
 	}
 }
 
-func (s *EmailService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
-	subject := fmt.Sprintf("Order Confirmation #%s", order.ID)
+func (s *EmailService) SendOrderConfirmation(
+	ctx context.Context,
+	order *domain.Order,
+) error {
+	subject := fmt.Sprintf(
+		"Order Confirmation #%s",
+		order.ID,
+	)
+
 	body := s.generateOrderConfirmationEmail(order)
-	return s.SendEmail(ctx, order.Customer.User.Email, subject, body)
+
+	return s.SendEmail(
+		ctx,
+		order.Customer.User.Email,
+		subject,
+		body,
+	)
 }
 
-func (s *EmailService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
-	subject := fmt.Sprintf("Order Status Update #%s", order.ID)
+func (s *EmailService) SendOrderStatusUpdate(
+	ctx context.Context,
+	order *domain.Order,
+) error {
+	subject := fmt.Sprintf(
+		"Order Status Update #%s",
+		order.ID,
+	)
+
 	body := s.generateOrderStatusUpdateEmail(order)
-	return s.SendEmail(ctx, order.Customer.User.Email, subject, body)
+
+	return s.SendEmail(
+		ctx,
+		order.Customer.User.Email,
+		subject,
+		body,
+	)
 }
 
-func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) error {
+func (s *EmailService) SendEmail(
+	ctx context.Context,
+	to, subject, body string,
+) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	done := make(chan error, 1)
 	go func() {
-		auth := smtp.PlainAuth("", s.config.Username, s.config.Password, s.config.Host)
-
+		auth := smtp.PlainAuth(
+			"",
+			s.config.Username,
+			s.config.Password,
+			s.config.Host,
+		)
 		msg := fmt.Sprintf("From: %s <%s>\r\n"+
 			"To: %s\r\n"+
 			"Subject: %s\r\n"+
@@ -47,23 +82,34 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) 
 			"Content-Type: text/html; charset=UTF-8\r\n"+
 			"\r\n"+
 			"%s\r\n", s.config.FromName, s.config.From, to, subject, body)
-
-		addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+		addr := fmt.Sprintf(
+			"%s:%d",
+			s.config.Host,
+			s.config.Port,
+		)
 		done <- smtp.SendMail(addr, auth, s.config.From, []string{to}, []byte(msg))
 	}()
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("email sending timeout: %w", ctx.Err())
+		return fmt.Errorf(
+			"email sending timeout: %w",
+			ctx.Err(),
+		)
 	case err := <-done:
 		if err != nil {
-			return fmt.Errorf("failed to send email: %w", err)
+			return fmt.Errorf(
+				"failed to send email: %w",
+				err,
+			)
 		}
 		return nil
 	}
 }
 
-func (s *EmailService) generateOrderConfirmationEmail(order *domain.Order) string {
+func (s *EmailService) generateOrderConfirmationEmail(
+	order *domain.Order,
+) string {
 	template := `
 		<h2>Order Confirmation</h2>
 		<p>Dear %s,</p>
@@ -76,9 +122,14 @@ func (s *EmailService) generateOrderConfirmationEmail(order *domain.Order) strin
 		<ul>
 	`
 	itemsList := ""
+
 	for _, item := range order.Items {
-		itemsList += fmt.Sprintf("<li>%s - Quantity: %d - Price: %.2f</li>",
-			item.Product.Name, item.Quantity, item.Price)
+		itemsList += fmt.Sprintf(
+			"<li>%s - Quantity: %d - Price: %.2f</li>",
+			item.Product.Name,
+			item.Quantity,
+			item.Price,
+		)
 	}
 
 	footer := `
@@ -87,7 +138,8 @@ func (s *EmailService) generateOrderConfirmationEmail(order *domain.Order) strin
 		<p>Best regards,<br>Grocery Service Team</p>
 	`
 
-	return fmt.Sprintf(template,
+	return fmt.Sprintf(
+		template,
 		order.Customer.User.Name,
 		order.ID,
 		order.TotalPrice,
@@ -96,7 +148,9 @@ func (s *EmailService) generateOrderConfirmationEmail(order *domain.Order) strin
 	) + itemsList + footer
 }
 
-func (s *EmailService) generateOrderStatusUpdateEmail(order *domain.Order) string {
+func (s *EmailService) generateOrderStatusUpdateEmail(
+	order *domain.Order,
+) string {
 	template := `
 		<h2>Order Status Update</h2>
 		<p>Dear %s,</p>

@@ -55,47 +55,63 @@ func newOpenIDConfig(config AuthConfig) *OpenIDConfig {
 	}
 }
 
-func Authentication(config AuthConfig) func(http.Handler) http.Handler {
+func Authentication(
+	config AuthConfig,
+) func(http.Handler) http.Handler {
 	oidConfig := newOpenIDConfig(config)
 
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Skip auth for OAuth/OpenID endpoints
-			if r.URL.Path == "/auth/callback" || r.URL.Path == "/auth/login" {
-				next.ServeHTTP(w, r)
-				return
-			}
+		return http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				// Skip auth for OAuth/OpenID endpoints
+				if r.URL.Path == "/auth/callback" ||
+					r.URL.Path == "/auth/login" {
+					next.ServeHTTP(w, r)
+					return
+				}
 
-			// Try JWT authentication first
-			if userCtx, ok := validateJWT(r, config); ok {
-				next.ServeHTTP(w, r.WithContext(userCtx))
-				return
-			}
+				// Try JWT authentication first
+				if userCtx, ok := validateJWT(r, config); ok {
+					next.ServeHTTP(w, r.WithContext(userCtx))
+					return
+				}
 
-			// Try OpenID token
-			if userCtx, ok := validateOpenIDToken(r, oidConfig); ok {
-				next.ServeHTTP(w, r.WithContext(userCtx))
-				return
-			}
+				// Try OpenID token
+				if userCtx, ok := validateOpenIDToken(r, oidConfig); ok {
+					next.ServeHTTP(w, r.WithContext(userCtx))
+					return
+				}
 
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-		})
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+			},
+		)
 	}
 }
 
-func validateJWT(r *http.Request, config AuthConfig) (context.Context, bool) {
+func validateJWT(
+	r *http.Request,
+	config AuthConfig,
+) (context.Context, bool) {
 	authHeader := r.Header.Get("Authorization")
 	if !strings.HasPrefix(authHeader, "Bearer ") {
 		return nil, false
 	}
 
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(config.JWTSecret), nil
-	})
+
+	token, err := jwt.Parse(
+		tokenString,
+		func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf(
+					"unexpected signing method: %v",
+					token.Header["alg"],
+				)
+			}
+
+			return []byte(config.JWTSecret), nil
+		},
+	)
 
 	if err != nil || !token.Valid {
 		return nil, false
@@ -115,6 +131,7 @@ func validateJWT(r *http.Request, config AuthConfig) (context.Context, bool) {
 				break
 			}
 		}
+
 		if !isAllowed {
 			return nil, false
 		}
@@ -129,7 +146,10 @@ func validateJWT(r *http.Request, config AuthConfig) (context.Context, bool) {
 	return ctx, true
 }
 
-func validateOpenIDToken(r *http.Request, config *OpenIDConfig) (context.Context, bool) {
+func validateOpenIDToken(
+	r *http.Request,
+	config *OpenIDConfig,
+) (context.Context, bool) {
 	authHeader := r.Header.Get("Authorization")
 	if !strings.HasPrefix(authHeader, "OpenID ") {
 		return nil, false
@@ -165,33 +185,54 @@ func validateOpenIDToken(r *http.Request, config *OpenIDConfig) (context.Context
 }
 
 func RequireAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Context().Value(UserIDKey) == nil {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			if r.Context().Value(UserIDKey) == nil {
+				http.Error(
+					w,
+					"unauthorized",
+					http.StatusUnauthorized,
+				)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		},
+	)
 }
 
 func RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role, ok := r.Context().Value(UserRoleKey).(string)
-		if !ok || role != AdminRole {
-			http.Error(w, "forbidden: admin access required", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			role, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok || role != AdminRole {
+				http.Error(
+					w,
+					"forbidden: admin access required",
+					http.StatusForbidden,
+				)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		},
+	)
 }
 
 func RequireCustomer(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role, ok := r.Context().Value(UserRoleKey).(string)
-		if !ok || (role != CustomerRole && role != AdminRole) {
-			http.Error(w, "forbidden: customer access required", http.StatusForbidden)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			role, ok := r.Context().Value(UserRoleKey).(string)
+			if !ok || (role != CustomerRole && role != AdminRole) {
+				http.Error(
+					w,
+					"forbidden: customer access required",
+					http.StatusForbidden,
+				)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		},
+	)
 }

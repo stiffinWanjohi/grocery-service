@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    description TEXT,
     parent_id UUID REFERENCES categories(id),
     level INTEGER NOT NULL DEFAULT 0,
     path VARCHAR(255) NOT NULL,

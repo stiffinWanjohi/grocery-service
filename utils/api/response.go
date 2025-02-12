@@ -2,36 +2,59 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 )
 
 // Response represents the standard API response format
 // @Description Standard API response structure
 type Response struct {
-	// Indicates if the request was successful
-	Success bool `json:"success" example:"true"`
-	// Contains the response data (if any)
-	Data interface{} `json:"data,omitempty"`
-	// Contains error message (if any)
-	Error string `json:"error,omitempty" example:"Invalid request parameters"`
+	Success bool        `json:"success"         example:"true"`
+	Data    interface{} `json:"data,omitempty"`
+	Error   string      `json:"error,omitempty" example:"Invalid request parameters"`
 }
 
-// SuccessResponse writes a success response to the http.ResponseWriter
-func SuccessResponse(w http.ResponseWriter, data interface{}, status int) {
+var ErrResponseEncoding = errors.New("failed to encode response")
+
+func SuccessResponse(
+	w http.ResponseWriter,
+	data interface{},
+	status int,
+) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+
+	if err := json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data:    data,
-	})
+	}); err != nil {
+		return fmt.Errorf(
+			"%w: %v",
+			ErrResponseEncoding,
+			err,
+		)
+	}
+	return nil
 }
 
-// ErrorResponse writes an error response to the http.ResponseWriter
-func ErrorResponse(w http.ResponseWriter, message string, status int) {
+func ErrorResponse(
+	w http.ResponseWriter,
+	message string,
+	status int,
+) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(Response{
+
+	if err := json.NewEncoder(w).Encode(Response{
 		Success: false,
 		Error:   message,
-	})
+	}); err != nil {
+		return fmt.Errorf(
+			"%w: %v",
+			ErrResponseEncoding,
+			err,
+		)
+	}
+	return nil
 }

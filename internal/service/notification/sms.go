@@ -25,7 +25,10 @@ func NewSMSService(config config.SMSConfig) *SMSService {
 	}
 }
 
-func (s *SMSService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
+func (s *SMSService) SendOrderConfirmation(
+	ctx context.Context,
+	order *domain.Order,
+) error {
 	message := fmt.Sprintf(
 		"Hi %s, Order #%s confirmed. Total: %.2f. Delivery to: %s. Thank you for your order!",
 		order.Customer.User.Name,
@@ -33,10 +36,18 @@ func (s *SMSService) SendOrderConfirmation(ctx context.Context, order *domain.Or
 		order.TotalPrice,
 		order.Customer.User.Address,
 	)
-	return s.sendSMS(ctx, order.Customer.User.Phone, message)
+
+	return s.sendSMS(
+		ctx,
+		order.Customer.User.Phone,
+		message,
+	)
 }
 
-func (s *SMSService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
+func (s *SMSService) SendOrderStatusUpdate(
+	ctx context.Context,
+	order *domain.Order,
+) error {
 	message := fmt.Sprintf(
 		"Hi %s, Order #%s status updated to: %s. Delivery to: %s",
 		order.Customer.User.Name,
@@ -44,24 +55,44 @@ func (s *SMSService) SendOrderStatusUpdate(ctx context.Context, order *domain.Or
 		order.Status,
 		order.Customer.User.Address,
 	)
-	return s.sendSMS(ctx, order.Customer.User.Phone, message)
+
+	return s.sendSMS(
+		ctx,
+		order.Customer.User.Phone,
+		message,
+	)
 }
 
-func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {
+func (s *SMSService) sendSMS(
+	ctx context.Context,
+	phone, message string,
+) error {
 	payload := map[string]string{
 		"username": s.config.Username,
 		"to":       phone,
 		"message":  message,
 		"from":     s.config.SenderID,
 	}
+
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return errors.WrapError(err, "failed to marshal SMS payload")
+		return errors.WrapError(
+			err,
+			"failed to marshal SMS payload",
+		)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", s.config.BaseURL, bytes.NewBuffer(payloadBytes))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		s.config.BaseURL,
+		bytes.NewBuffer(payloadBytes),
+	)
 	if err != nil {
-		return errors.WrapError(err, "failed to create SMS request")
+		return errors.WrapError(
+			err,
+			"failed to create SMS request",
+		)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -69,17 +100,26 @@ func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return errors.WrapError(err, "failed to send SMS request")
+		return errors.WrapError(
+			err,
+			"failed to send SMS request",
+		)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to send SMS: received status %s", resp.Status)
+		return fmt.Errorf(
+			"failed to send SMS: received status %s",
+			resp.Status,
+		)
 	}
 
 	var response map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return errors.WrapError(err, "failed to decode SMS response")
+		return errors.WrapError(
+			err,
+			"failed to decode SMS response",
+		)
 	}
 
 	smsData, ok := response["SMSMessageData"].(map[string]interface{})
@@ -94,7 +134,10 @@ func (s *SMSService) sendSMS(ctx context.Context, phone, message string) error {
 
 	firstRecipient := recipients[0].(map[string]interface{})
 	if firstRecipient["status"] != "Success" {
-		return fmt.Errorf("SMS delivery failed: %s", firstRecipient["status"])
+		return fmt.Errorf(
+			"SMS delivery failed: %s",
+			firstRecipient["status"],
+		)
 	}
 
 	return nil

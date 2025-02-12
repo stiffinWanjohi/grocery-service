@@ -19,7 +19,9 @@ type BaseRepository[T any] struct {
 }
 
 // NewBaseRepository creates a new BaseRepository
-func NewBaseRepository[T any](db *PostgresDB) *BaseRepository[T] {
+func NewBaseRepository[T any](
+	db *PostgresDB,
+) *BaseRepository[T] {
 	return &BaseRepository[T]{db: db}
 }
 
@@ -29,7 +31,9 @@ func (r *BaseRepository[T]) GetDB() *gorm.DB {
 }
 
 // WithTx creates a new repository instance using the provided transaction
-func (r *BaseRepository[T]) WithTx(tx *gorm.DB) *BaseRepository[T] {
+func (r *BaseRepository[T]) WithTx(
+	tx *gorm.DB,
+) *BaseRepository[T] {
 	return &BaseRepository[T]{db: &PostgresDB{DB: tx}}
 }
 
@@ -44,7 +48,7 @@ func (r *BaseRepository[T]) BeginTransaction() (*gorm.DB, error) {
 
 // WithTransaction is a utility method to run a function within a transaction
 func (r *BaseRepository[T]) WithTransaction(
-	ctx context.Context,
+	_ context.Context,
 	fn func(txRepo *BaseRepository[T]) error,
 ) error {
 	tx, err := r.BeginTransaction()

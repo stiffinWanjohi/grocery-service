@@ -7,21 +7,21 @@ import (
 )
 
 func Logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-
-		rw := &responseWriter{w, http.StatusOK}
-		next.ServeHTTP(rw, r)
-
-		log.Printf(
-			"%s %s %s %d %v",
-			r.RemoteAddr,
-			r.Method,
-			r.URL.Path,
-			rw.status,
-			time.Since(start),
-		)
-	})
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			rw := &responseWriter{w, http.StatusOK}
+			next.ServeHTTP(rw, r)
+			log.Printf(
+				"%s %s %s %d %v",
+				r.RemoteAddr,
+				r.Method,
+				r.URL.Path,
+				rw.status,
+				time.Since(start),
+			)
+		},
+	)
 }
 
 type responseWriter struct {

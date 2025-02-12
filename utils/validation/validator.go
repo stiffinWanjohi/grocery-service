@@ -12,8 +12,22 @@ var validate *validator.Validate
 
 func init() {
 	validate = validator.New()
-	validate.RegisterValidation("phone", validatePhone)
-	validate.RegisterValidation("password", validatePassword)
+	if err := validate.RegisterValidation("phone", validatePhone); err != nil {
+		panic(
+			fmt.Sprintf(
+				"failed to register phone validator: %v",
+				err,
+			),
+		)
+	}
+	if err := validate.RegisterValidation("password", validatePassword); err != nil {
+		panic(
+			fmt.Sprintf(
+				"failed to register password validator: %v",
+				err,
+			),
+		)
+	}
 }
 
 func Struct(s interface{}) error {
@@ -54,6 +68,9 @@ func formatErrorMsg(e validator.FieldError) string {
 	case "password":
 		return "Password must be at least 8 characters"
 	default:
-		return fmt.Sprintf("Invalid value for %s", e.Field())
+		return fmt.Sprintf(
+			"Invalid value for %s",
+			e.Field(),
+		)
 	}
 }

@@ -13,7 +13,10 @@ var log *zap.Logger
 func init() {
 	config := zap.NewProductionConfig()
 	config.EncoderConfig.TimeKey = "timestamp"
-	config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(time.RFC3339)
+	config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout(
+		time.RFC3339,
+	)
+
 	config.EncoderConfig.StacktraceKey = "stacktrace"
 
 	var err error
@@ -59,6 +62,6 @@ func Int(key string, value int) zap.Field {
 	return zap.Int(key, value)
 }
 
-func Error64(key string, value error) zap.Field {
+func Error64(_ string, value error) zap.Field {
 	return zap.Error(value)
 }

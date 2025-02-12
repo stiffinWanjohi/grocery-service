@@ -17,7 +17,9 @@ type CategoryHandler struct {
 	service service.CategoryService
 }
 
-func NewCategoryHandler(service service.CategoryService) *CategoryHandler {
+func NewCategoryHandler(
+	service service.CategoryService,
+) *CategoryHandler {
 	return &CategoryHandler{service: service}
 }
 
@@ -43,25 +45,70 @@ func (h *CategoryHandler) Routes() chi.Router {
 // @Success 201 {object} api.Response{data=domain.Category}
 // @Failure 400 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/categories [post]
-func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
+// @Router /categories [post]
+func (h *CategoryHandler) Create(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	if err := h.service.Create(r.Context(), &category); err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrInvalidCategoryData):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to create category", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to create category",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, category, http.StatusCreated)
+	if err := api.SuccessResponse(w, category, http.StatusCreated); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Get a category by ID
@@ -74,11 +121,24 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/categories/{id} [get]
-func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+// @Router /categories/{id} [get]
+func (h *CategoryHandler) GetByID(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
-		api.ErrorResponse(w, "Invalid category ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid category ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
@@ -86,14 +146,46 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrCategoryNotFound):
-			api.ErrorResponse(w, "Category not found", http.StatusNotFound)
+			if err := api.ErrorResponse(
+				w,
+				"Category not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to get category", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to get category",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, category, http.StatusOK)
+	if err := api.SuccessResponse(w, category, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary List all categories
@@ -103,15 +195,40 @@ func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Success 200 {object} api.Response{data=[]domain.Category}
 // @Failure 500 {object} api.Response
-// @Router /api/v1/categories [get]
-func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
+// @Router /categories [get]
+func (h *CategoryHandler) List(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	categories, err := h.service.List(r.Context())
 	if err != nil {
-		api.ErrorResponse(w, "Failed to list categories", http.StatusInternalServerError)
+		if err := api.ErrorResponse(
+			w,
+			"Failed to list categories",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
-	api.SuccessResponse(w, categories, http.StatusOK)
+	if err := api.SuccessResponse(w, categories, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary List subcategories
@@ -124,11 +241,24 @@ func (h *CategoryHandler) List(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/categories/{id}/subcategories [get]
-func (h *CategoryHandler) ListByParentID(w http.ResponseWriter, r *http.Request) {
+// @Router /categories/{id}/subcategories [get]
+func (h *CategoryHandler) ListByParentID(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	parentID := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(parentID); err != nil {
-		api.ErrorResponse(w, "Invalid parent category ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid parent category ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
@@ -136,14 +266,46 @@ func (h *CategoryHandler) ListByParentID(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrCategoryNotFound):
-			api.ErrorResponse(w, "Parent category not found", http.StatusNotFound)
+			if err := api.ErrorResponse(
+				w,
+				"Parent category not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to list subcategories", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to list subcategories",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, categories, http.StatusOK)
+	if err := api.SuccessResponse(w, categories, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Update a category
@@ -157,17 +319,40 @@ func (h *CategoryHandler) ListByParentID(w http.ResponseWriter, r *http.Request)
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/categories/{id} [put]
-func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
+// @Router /categories/{id} [put]
+func (h *CategoryHandler) Update(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
-		api.ErrorResponse(w, "Invalid category ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid category ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	var category domain.Category
 	if err := json.NewDecoder(r.Body).Decode(&category); err != nil {
-		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
@@ -175,16 +360,58 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err := h.service.Update(r.Context(), &category); err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrCategoryNotFound):
-			api.ErrorResponse(w, "Category not found", http.StatusNotFound)
+			if err := api.ErrorResponse(
+				w,
+				"Category not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		case errors.Is(err, customErrors.ErrInvalidCategoryData):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to update category", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to update category",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, category, http.StatusOK)
+	if err := api.SuccessResponse(w, category, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Delete a category
@@ -197,23 +424,68 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/categories/{id} [delete]
-func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
+// @Router /categories/{id} [delete]
+func (h *CategoryHandler) Delete(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
-		api.ErrorResponse(w, "Invalid category ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid category ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrCategoryNotFound):
-			api.ErrorResponse(w, "Category not found", http.StatusNotFound)
+			if err := api.ErrorResponse(
+				w,
+				"Category not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to delete category", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to delete category",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, nil, http.StatusNoContent)
+	if err := api.SuccessResponse(w, nil, http.StatusNoContent); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }

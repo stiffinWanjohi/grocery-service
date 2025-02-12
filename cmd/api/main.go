@@ -23,18 +23,8 @@ import (
 // @title           Grocery Service API
 // @version         1.0
 // @description     API for managing grocery store operations
-// @termsOfService  http://swagger.io/terms/
-
-// @contact.name   API Support
-// @contact.url    http://www.swagger.io/support
-// @contact.email  support@swagger.io
-
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
-
 // @host      localhost:8080
 // @BasePath  /api/v1
-
 // @securityDefinitions.apikey bearerAuth
 // @in header
 // @name Authorization
@@ -61,11 +51,7 @@ func main() {
 
 	// Initialize services
 	notificationService := initializeNotificationService(cfg)
-	authService := service.NewAuthService(
-		*cfg,
-		userRepo,
-		tokenRepo,
-	)
+	authService := service.NewAuthService(*cfg, userRepo, tokenRepo)
 	customerService := service.NewCustomerService(customerRepo, userRepo)
 	productService := service.NewProductService(productRepo, categoryRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
@@ -114,7 +100,9 @@ type handlers struct {
 	orderHandler    *handler.OrderHandler
 }
 
-func initializeNotificationService(cfg *config.Config) notification.NotificationService {
+func initializeNotificationService(
+	cfg *config.Config,
+) notification.NotificationService {
 	smsService := notification.NewSMSService(cfg.SMS)
 	emailService := notification.NewEmailService(cfg.SMTP)
 	return notification.NewCompositeNotificationService(
@@ -150,7 +138,8 @@ func startServer(handler http.Handler, port int) {
 
 	go func() {
 		log.Printf("Server starting on port %d", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServe(); err != nil &&
+			err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
@@ -158,9 +147,14 @@ func startServer(handler http.Handler, port int) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
+
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {

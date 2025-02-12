@@ -25,36 +25,59 @@ func TestProductService_Create(t *testing.T) {
 		CategoryID: uuid.New(),
 	}
 
+	mockCategoryRepo.On("GetByID", ctx, product.CategoryID.String()).
+		Return(&domain.Category{
+			ID:   product.CategoryID,
+			Name: "Test Category",
+		}, nil)
 	mockProductRepo.On("Create", ctx, product).Return(nil)
 
 	err := service.Create(ctx, product)
 	assert.NoError(t, err)
 
-	// Test validation errors
 	testCases := []struct {
 		name    string
 		product *domain.Product
 		errMsg  string
 	}{
 		{
-			name:    "Empty name",
-			product: &domain.Product{ID: uuid.New(), Price: 10.99, Stock: 100},
-			errMsg:  "product name is required",
+			name: "Empty name",
+			product: &domain.Product{
+				ID:    uuid.New(),
+				Price: 10.99,
+				Stock: 100,
+			},
+			errMsg: "product name is required",
 		},
 		{
-			name:    "Zero price",
-			product: &domain.Product{ID: uuid.New(), Name: "Test", Price: 0, Stock: 100},
-			errMsg:  "product price must be greater than zero",
+			name: "Zero price",
+			product: &domain.Product{
+				ID:    uuid.New(),
+				Name:  "Test",
+				Price: 0,
+				Stock: 100,
+			},
+			errMsg: "product price must be greater than zero",
 		},
 		{
-			name:    "Negative price",
-			product: &domain.Product{ID: uuid.New(), Name: "Test", Price: -10, Stock: 100},
-			errMsg:  "product price must be greater than zero",
+			name: "Negative price",
+			product: &domain.Product{
+				ID:    uuid.New(),
+				Name:  "Test",
+				Price: -10,
+				Stock: 100,
+			},
+			errMsg: "product price must be greater than zero",
 		},
 		{
-			name:    "Negative stock",
-			product: &domain.Product{ID: uuid.New(), Name: "Test", Price: 10.99, Stock: -1},
-			errMsg:  "product stock cannot be negative",
+			name: "Negative stock",
+			product: &domain.Product{
+				ID:    uuid.New(),
+				Name:  "Test",
+				Price: 10.99,
+				Stock: -1,
+			},
+			errMsg: "product stock cannot be negative",
 		},
 	}
 
@@ -82,7 +105,8 @@ func TestProductService_GetByID(t *testing.T) {
 	}
 
 	mockProductRepo.On("GetByID", ctx, product.ID.String()).Return(product, nil)
-	mockProductRepo.On("GetByID", ctx, "non-existent").Return(nil, customErrors.ErrProductNotFound)
+	mockProductRepo.On("GetByID", ctx, "non-existent").
+		Return(nil, customErrors.ErrProductNotFound)
 
 	found, err := service.GetByID(ctx, product.ID.String())
 	assert.NoError(t, err)
@@ -100,8 +124,18 @@ func TestProductService_List(t *testing.T) {
 	ctx := context.Background()
 
 	products := []domain.Product{
-		{ID: uuid.New(), Name: "Product 1", Price: 10.99, Stock: 100},
-		{ID: uuid.New(), Name: "Product 2", Price: 20.99, Stock: 200},
+		{
+			ID:    uuid.New(),
+			Name:  "Product 1",
+			Price: 10.99,
+			Stock: 100,
+		},
+		{
+			ID:    uuid.New(),
+			Name:  "Product 2",
+			Price: 20.99,
+			Stock: 200,
+		},
 	}
 
 	mockProductRepo.On("List", ctx).Return(products, nil)
@@ -119,11 +153,24 @@ func TestProductService_ListByCategoryID(t *testing.T) {
 
 	categoryID := uuid.New()
 	products := []domain.Product{
-		{ID: uuid.New(), Name: "Product 1", Price: 10.99, Stock: 100, CategoryID: categoryID},
-		{ID: uuid.New(), Name: "Product 2", Price: 20.99, Stock: 200, CategoryID: categoryID},
+		{
+			ID:         uuid.New(),
+			Name:       "Product 1",
+			Price:      10.99,
+			Stock:      100,
+			CategoryID: categoryID,
+		},
+		{
+			ID:         uuid.New(),
+			Name:       "Product 2",
+			Price:      20.99,
+			Stock:      200,
+			CategoryID: categoryID,
+		},
 	}
 
-	mockProductRepo.On("ListByCategoryID", ctx, categoryID.String()).Return(products, nil)
+	mockProductRepo.On("ListByCategoryID", ctx, categoryID.String()).
+		Return(products, nil)
 
 	found, err := service.ListByCategoryID(ctx, categoryID.String())
 	assert.NoError(t, err)
@@ -143,7 +190,7 @@ func TestProductService_Update(t *testing.T) {
 		Stock:      100,
 		CategoryID: uuid.New(),
 	}
-
+	mockProductRepo.On("GetByID", ctx, product.ID.String()).Return(product, nil)
 	mockProductRepo.On("Update", ctx, product).Return(nil)
 
 	err := service.Update(ctx, product)
@@ -164,7 +211,12 @@ func TestProductService_UpdateStock(t *testing.T) {
 	ctx := context.Background()
 
 	productID := uuid.New().String()
-
+	product := &domain.Product{
+		ID:    uuid.MustParse(productID),
+		Name:  "Test Product",
+		Stock: 100,
+	}
+	mockProductRepo.On("GetByID", ctx, productID).Return(product, nil)
 	mockProductRepo.On("UpdateStock", ctx, productID, 50).Return(nil)
 	err := service.UpdateStock(ctx, productID, 50)
 	assert.NoError(t, err)
@@ -183,7 +235,8 @@ func TestProductService_Delete(t *testing.T) {
 	id := uuid.New().String()
 
 	mockProductRepo.On("Delete", ctx, id).Return(nil)
-	mockProductRepo.On("Delete", ctx, "non-existent").Return(customErrors.ErrProductNotFound)
+	mockProductRepo.On("Delete", ctx, "non-existent").
+		Return(customErrors.ErrProductNotFound)
 
 	err := service.Delete(ctx, id)
 	assert.NoError(t, err)

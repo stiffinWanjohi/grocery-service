@@ -17,7 +17,9 @@ type OrderHandler struct {
 	service service.OrderService
 }
 
-func NewOrderHandler(service service.OrderService) *OrderHandler {
+func NewOrderHandler(
+	service service.OrderService,
+) *OrderHandler {
 	return &OrderHandler{service: service}
 }
 
@@ -44,27 +46,81 @@ func (h *OrderHandler) Routes() chi.Router {
 // @Success 201 {object} api.Response{data=domain.Order}
 // @Failure 400 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders [post]
-func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
+// @Router /orders [post]
+func (h *OrderHandler) Create(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	var order domain.Order
 	if err := json.NewDecoder(r.Body).Decode(&order); err != nil {
-		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	if err := h.service.Create(r.Context(), &order); err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrInvalidOrderData):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		case errors.Is(err, customErrors.ErrInsufficientStock):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to create order", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to create order",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
-
-	api.SuccessResponse(w, order, http.StatusCreated)
+	if err := api.SuccessResponse(w, order, http.StatusCreated); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Get an order by ID
@@ -77,11 +133,24 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders/{id} [get]
-func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+// @Router /orders/{id} [get]
+func (h *OrderHandler) GetByID(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
-		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid order ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
@@ -89,14 +158,46 @@ func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrOrderNotFound):
-			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
+			if err := api.ErrorResponse(
+				w,
+				"Order not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to get order", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to get order",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, order, http.StatusOK)
+	if err := api.SuccessResponse(w, order, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary List all orders
@@ -106,15 +207,39 @@ func (h *OrderHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Success 200 {object} api.Response{data=[]domain.Order}
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders [get]
-func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
+// @Router /orders [get]
+func (h *OrderHandler) List(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	orders, err := h.service.List(r.Context())
 	if err != nil {
-		api.ErrorResponse(w, "Failed to list orders", http.StatusInternalServerError)
+		if err := api.ErrorResponse(
+			w,
+			"Failed to list orders",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
-
-	api.SuccessResponse(w, orders, http.StatusOK)
+	if err := api.SuccessResponse(w, orders, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary List customer orders
@@ -127,26 +252,72 @@ func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders/customer/{customerID} [get]
-func (h *OrderHandler) ListByCustomerID(w http.ResponseWriter, r *http.Request) {
+// @Router /orders/customer/{customerID} [get]
+func (h *OrderHandler) ListByCustomerID(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	customerID := chi.URLParam(r, "customerID")
 	if _, err := uuid.Parse(customerID); err != nil {
-		api.ErrorResponse(w, "Invalid customer ID", http.StatusBadRequest)
-		return
-	}
-
-	orders, err := h.service.ListByCustomerID(r.Context(), customerID)
-	if err != nil {
-		switch {
-		case errors.Is(err, customErrors.ErrCustomerNotFound):
-			api.ErrorResponse(w, "Customer not found", http.StatusNotFound)
-		default:
-			api.ErrorResponse(w, "Failed to list customer orders", http.StatusInternalServerError)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid customer ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
 		}
 		return
 	}
-
-	api.SuccessResponse(w, orders, http.StatusOK)
+	orders, err := h.service.ListByCustomerID(
+		r.Context(),
+		customerID,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, customErrors.ErrCustomerNotFound):
+			if err := api.ErrorResponse(
+				w,
+				"Customer not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		default:
+			if err := api.ErrorResponse(
+				w,
+				"Failed to list customer orders",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		}
+		return
+	}
+	if err := api.SuccessResponse(w, orders, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Update order status
@@ -160,35 +331,101 @@ func (h *OrderHandler) ListByCustomerID(w http.ResponseWriter, r *http.Request) 
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders/{id}/status [put]
-func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+// @Router /orders/{id}/status [put]
+func (h *OrderHandler) UpdateStatus(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	id := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(id); err != nil {
-		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid order ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	var request struct {
 		Status domain.OrderStatus `json:"status"`
 	}
+
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	if err := h.service.UpdateStatus(r.Context(), id, request.Status); err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrOrderNotFound):
-			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
+			if err := api.ErrorResponse(
+				w,
+				"Order not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to update order status", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to update order status",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, nil, http.StatusOK)
+	if err := api.SuccessResponse(w, nil, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Add order item
@@ -202,37 +439,122 @@ func (h *OrderHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders/{id}/items [post]
-func (h *OrderHandler) AddOrderItem(w http.ResponseWriter, r *http.Request) {
+// @Router /orders/{id}/items [post]
+func (h *OrderHandler) AddOrderItem(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	orderID := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(orderID); err != nil {
-		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid order ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	var item domain.OrderItem
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
-		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	if err := h.service.AddOrderItem(r.Context(), orderID, &item); err != nil {
 		switch {
 		case errors.Is(err, customErrors.ErrOrderNotFound):
-			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
-		case errors.Is(err, customErrors.ErrInvalidOrderData):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				"Order not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		case errors.Is(err, customErrors.ErrInvalidOrderItemData):
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		case errors.Is(err, customErrors.ErrInsufficientStock):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		default:
-			api.ErrorResponse(w, "Failed to add order item", http.StatusInternalServerError)
+			if err := api.ErrorResponse(
+				w,
+				"Failed to add order item",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
 		}
 		return
 	}
 
-	api.SuccessResponse(w, item, http.StatusCreated)
+	if err := api.SuccessResponse(w, item, http.StatusCreated); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+	}
 }
 
 // @Summary Remove order item
@@ -246,33 +568,101 @@ func (h *OrderHandler) AddOrderItem(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 404 {object} api.Response
 // @Failure 500 {object} api.Response
-// @Router /api/v1/orders/{id}/items/{itemID} [delete]
-func (h *OrderHandler) RemoveOrderItem(w http.ResponseWriter, r *http.Request) {
+// @Router /orders/{id}/items/{itemID} [delete]
+func (h *OrderHandler) RemoveOrderItem(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	orderID := chi.URLParam(r, "id")
 	if _, err := uuid.Parse(orderID); err != nil {
-		api.ErrorResponse(w, "Invalid order ID", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid order ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	itemID := chi.URLParam(r, "itemID")
 	if _, err := uuid.Parse(itemID); err != nil {
-		api.ErrorResponse(w, "Invalid item ID", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.service.RemoveOrderItem(r.Context(), orderID, itemID); err != nil {
-		switch {
-		case errors.Is(err, customErrors.ErrOrderNotFound):
-			api.ErrorResponse(w, "Order not found", http.StatusNotFound)
-		case errors.Is(err, customErrors.ErrOrderItemNotFound):
-			api.ErrorResponse(w, "Order item not found", http.StatusNotFound)
-		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
-			api.ErrorResponse(w, err.Error(), http.StatusBadRequest)
-		default:
-			api.ErrorResponse(w, "Failed to remove order item", http.StatusInternalServerError)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid item ID",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
 		}
 		return
 	}
 
-	api.SuccessResponse(w, nil, http.StatusNoContent)
+	err := h.service.RemoveOrderItem(
+		r.Context(),
+		orderID,
+		itemID,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, customErrors.ErrOrderNotFound):
+			if err := api.ErrorResponse(
+				w,
+				"Order not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		case errors.Is(err, customErrors.ErrOrderItemNotFound):
+			if err := api.ErrorResponse(
+				w,
+				"Order item not found",
+				http.StatusNotFound,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		case errors.Is(err, customErrors.ErrOrderStatusInvalid):
+			if err := api.ErrorResponse(
+				w,
+				err.Error(),
+				http.StatusBadRequest,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		default:
+			if err := api.ErrorResponse(
+				w,
+				"Failed to remove order item",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+		}
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

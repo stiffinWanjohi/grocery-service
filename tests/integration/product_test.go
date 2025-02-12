@@ -20,7 +20,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupProductTest() (*serviceMock.ProductService, *handler.ProductHandler) {
+func setupProductTest() (
+	*serviceMock.ProductService,
+	*handler.ProductHandler,
+) {
 	mockService := new(serviceMock.ProductService)
 	handler := handler.NewProductHandler(mockService)
 	return mockService, handler
@@ -48,8 +51,10 @@ func TestProductHandler_Create(t *testing.T) {
 			},
 			setupMock: func(p *domain.Product) {
 				mockService.On("Create", mock.Anything, mock.MatchedBy(func(product *domain.Product) bool {
-					return product.Name == p.Name && product.Price == p.Price
-				})).Return(nil)
+					return product.Name == p.Name &&
+						product.Price == p.Price
+				})).
+					Return(nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -61,11 +66,13 @@ func TestProductHandler_Create(t *testing.T) {
 			},
 			setupMock: func(p *domain.Product) {
 				mockService.On("Create", mock.Anything, mock.MatchedBy(func(product *domain.Product) bool {
-					return product.Name == p.Name && product.Price == p.Price
-				})).Return(customErrors.ErrInvalidProductData)
+					return product.Name == p.Name &&
+						product.Price == p.Price
+				})).
+					Return(customErrors.ErrInvalidProductData)
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid product data",
+			wantError:  "invalid product data",
 		},
 	}
 
@@ -74,7 +81,11 @@ func TestProductHandler_Create(t *testing.T) {
 			tt.setupMock(tt.product)
 
 			jsonBody, _ := json.Marshal(tt.product)
-			req := httptest.NewRequest(http.MethodPost, "/products", bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/products",
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -92,8 +103,10 @@ func TestProductHandler_Create(t *testing.T) {
 			} else {
 				assert.True(t, response.Success)
 				var returnedProduct domain.Product
+
 				productData, err := json.Marshal(response.Data)
 				assert.NoError(t, err)
+
 				err = json.Unmarshal(productData, &returnedProduct)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.product.Name, returnedProduct.Name)
@@ -118,12 +131,13 @@ func TestProductHandler_GetByID(t *testing.T) {
 			name: "Success",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(&domain.Product{
-					ID:    testID,
-					Name:  "Banana",
-					Price: 0.99,
-					Stock: 50,
-				}, nil)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(&domain.Product{
+						ID:    testID,
+						Name:  "Banana",
+						Price: 0.99,
+						Stock: 50,
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -138,7 +152,8 @@ func TestProductHandler_GetByID(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(nil, customErrors.ErrProductNotFound)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(nil, customErrors.ErrProductNotFound)
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Product not found",
@@ -147,12 +162,16 @@ func TestProductHandler_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
+			mockService.Calls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
 			req := httptest.NewRequest(http.MethodGet, "/products/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.GetByID(w, req)
@@ -165,16 +184,19 @@ func TestProductHandler_GetByID(t *testing.T) {
 
 			if tt.wantError != "" {
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Equal(t, tt.wantError, response.Error)
 			} else {
 				assert.True(t, response.Success)
 				var returnedProduct domain.Product
 				productData, err := json.Marshal(response.Data)
 				assert.NoError(t, err)
+
 				err = json.Unmarshal(productData, &returnedProduct)
 				assert.NoError(t, err)
 				assert.Equal(t, testID, returnedProduct.ID)
 			}
+
+			mockService.AssertExpectations(t)
 		})
 	}
 }
@@ -192,18 +214,19 @@ func TestProductHandler_List(t *testing.T) {
 		{
 			name: "Success",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return([]domain.Product{
-					{
-						ID:    uuid.New(),
-						Name:  "Apple",
-						Price: 1.99,
-					},
-					{
-						ID:    uuid.New(),
-						Name:  "Banana",
-						Price: 0.99,
-					},
-				}, nil)
+				mockService.On("List", mock.Anything).
+					Return([]domain.Product{
+						{
+							ID:    uuid.New(),
+							Name:  "Apple",
+							Price: 1.99,
+						},
+						{
+							ID:    uuid.New(),
+							Name:  "Banana",
+							Price: 0.99,
+						},
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -211,7 +234,8 @@ func TestProductHandler_List(t *testing.T) {
 		{
 			name: "Internal Error",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return(nil, fmt.Errorf("database error"))
+				mockService.On("List", mock.Anything).
+					Return(nil, fmt.Errorf("database error"))
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantError:  "Failed to list products",
@@ -220,6 +244,8 @@ func TestProductHandler_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
+			mockService.Calls = nil
 			tt.setupMock()
 
 			req := httptest.NewRequest(http.MethodGet, "/products", nil)
@@ -235,16 +261,19 @@ func TestProductHandler_List(t *testing.T) {
 
 			if tt.wantError != "" {
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Equal(t, tt.wantError, response.Error)
 			} else {
 				assert.True(t, response.Success)
 				var products []domain.Product
 				productsData, err := json.Marshal(response.Data)
 				assert.NoError(t, err)
+
 				err = json.Unmarshal(productsData, &products)
 				assert.NoError(t, err)
 				assert.Len(t, products, tt.wantCount)
 			}
+
+			mockService.AssertExpectations(t)
 		})
 	}
 }
@@ -271,7 +300,8 @@ func TestProductHandler_Update(t *testing.T) {
 				Stock: 75,
 			},
 			setupMock: func() {
-				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Product")).Return(nil)
+				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Product")).
+					Return(nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -284,7 +314,8 @@ func TestProductHandler_Update(t *testing.T) {
 				Price: 2.49,
 			},
 			setupMock: func() {
-				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Product")).Return(customErrors.ErrProductNotFound)
+				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Product")).
+					Return(customErrors.ErrProductNotFound)
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Product not found",
@@ -298,24 +329,33 @@ func TestProductHandler_Update(t *testing.T) {
 				Price: -1,
 			},
 			setupMock: func() {
-				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Product")).Return(customErrors.ErrInvalidProductData)
+				mockService.On("Update", mock.Anything, mock.AnythingOfType("*domain.Product")).
+					Return(customErrors.ErrInvalidProductData)
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid product data",
+			wantError:  "invalid product data",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
+			mockService.Calls = nil
 			tt.setupMock()
 
 			jsonBody, _ := json.Marshal(tt.product)
-			req := httptest.NewRequest(http.MethodPut, "/products/"+tt.id, bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPut,
+				"/products/"+tt.id,
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 
 			w := httptest.NewRecorder()
 
@@ -329,10 +369,12 @@ func TestProductHandler_Update(t *testing.T) {
 
 			if tt.wantError != "" {
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Equal(t, tt.wantError, response.Error)
 			} else {
 				assert.True(t, response.Success)
 			}
+
+			mockService.AssertExpectations(t)
 		})
 	}
 }
@@ -352,7 +394,8 @@ func TestProductHandler_Delete(t *testing.T) {
 			name: "Success",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("Delete", mock.Anything, testID.String()).Return(nil)
+				mockService.On("Delete", mock.Anything, testID.String()).
+					Return(nil)
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -367,7 +410,8 @@ func TestProductHandler_Delete(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("Delete", mock.Anything, testID.String()).Return(customErrors.ErrProductNotFound)
+				mockService.On("Delete", mock.Anything, testID.String()).
+					Return(customErrors.ErrProductNotFound)
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Product not found",
@@ -376,12 +420,20 @@ func TestProductHandler_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
+			mockService.Calls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req := httptest.NewRequest(http.MethodDelete, "/products/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodDelete,
+				"/products/"+tt.id,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.Delete(w, req)
@@ -393,8 +445,10 @@ func TestProductHandler_Delete(t *testing.T) {
 				err := json.NewDecoder(w.Body).Decode(&response)
 				assert.NoError(t, err)
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Equal(t, tt.wantError, response.Error)
 			}
+
+			mockService.AssertExpectations(t)
 		})
 	}
 }
@@ -415,18 +469,19 @@ func TestProductHandler_ListByCategoryID(t *testing.T) {
 			name:       "Success",
 			categoryID: categoryID.String(),
 			setupMock: func() {
-				mockService.On("ListByCategoryID", mock.Anything, categoryID.String()).Return([]domain.Product{
-					{
-						ID:         uuid.New(),
-						Name:       "Red Apple",
-						CategoryID: categoryID,
-					},
-					{
-						ID:         uuid.New(),
-						Name:       "Green Apple",
-						CategoryID: categoryID,
-					},
-				}, nil)
+				mockService.On("ListByCategoryID", mock.Anything, categoryID.String()).
+					Return([]domain.Product{
+						{
+							ID:         uuid.New(),
+							Name:       "Red Apple",
+							CategoryID: categoryID,
+						},
+						{
+							ID:         uuid.New(),
+							Name:       "Green Apple",
+							CategoryID: categoryID,
+						},
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -442,7 +497,8 @@ func TestProductHandler_ListByCategoryID(t *testing.T) {
 			name:       "Category Not Found",
 			categoryID: categoryID.String(),
 			setupMock: func() {
-				mockService.On("ListByCategoryID", mock.Anything, categoryID.String()).Return(nil, customErrors.ErrCategoryNotFound)
+				mockService.On("ListByCategoryID", mock.Anything, categoryID.String()).
+					Return(nil, customErrors.ErrCategoryNotFound)
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Category not found",
@@ -451,12 +507,20 @@ func TestProductHandler_ListByCategoryID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
+			mockService.Calls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("categoryID", tt.categoryID)
-			req := httptest.NewRequest(http.MethodGet, "/products/category/"+tt.categoryID, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/products/category/"+tt.categoryID,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.ListByCategoryID(w, req)
@@ -469,19 +533,23 @@ func TestProductHandler_ListByCategoryID(t *testing.T) {
 
 			if tt.wantError != "" {
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Equal(t, tt.wantError, response.Error)
 			} else {
 				assert.True(t, response.Success)
 				var products []domain.Product
 				productsData, err := json.Marshal(response.Data)
 				assert.NoError(t, err)
+
 				err = json.Unmarshal(productsData, &products)
 				assert.NoError(t, err)
 				assert.Len(t, products, tt.wantCount)
+
 				if tt.wantCount > 0 {
 					assert.Equal(t, categoryID, products[0].CategoryID)
 				}
 			}
+
+			mockService.AssertExpectations(t)
 		})
 	}
 }
@@ -503,7 +571,8 @@ func TestProductHandler_UpdateStock(t *testing.T) {
 			id:       testID.String(),
 			quantity: 50,
 			setupMock: func() {
-				mockService.On("UpdateStock", mock.Anything, testID.String(), 50).Return(nil)
+				mockService.On("UpdateStock", mock.Anything, testID.String(), 50).
+					Return(nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -520,7 +589,8 @@ func TestProductHandler_UpdateStock(t *testing.T) {
 			id:       testID.String(),
 			quantity: -1,
 			setupMock: func() {
-				mockService.On("UpdateStock", mock.Anything, testID.String(), -1).Return(customErrors.ErrInvalidProductData)
+				mockService.On("UpdateStock", mock.Anything, testID.String(), -1).
+					Return(customErrors.ErrInvalidProductData)
 			},
 			wantStatus: http.StatusBadRequest,
 			wantError:  "Invalid product data",
@@ -530,7 +600,11 @@ func TestProductHandler_UpdateStock(t *testing.T) {
 			id:       testID.String(),
 			quantity: 50,
 			setupMock: func() {
-				mockService.On("UpdateStock", mock.Anything, testID.String(), 50).Return(customErrors.ErrProductNotFound)
+				mockService.On("UpdateStock",
+					mock.Anything,
+					testID.String(),
+					50,
+				).Return(customErrors.ErrProductNotFound)
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Product not found",
@@ -539,6 +613,8 @@ func TestProductHandler_UpdateStock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
+			mockService.Calls = nil
 			tt.setupMock()
 
 			stockUpdate := struct {
@@ -548,12 +624,18 @@ func TestProductHandler_UpdateStock(t *testing.T) {
 			}
 
 			jsonBody, _ := json.Marshal(stockUpdate)
-			req := httptest.NewRequest(http.MethodPut, "/products/"+tt.id+"/stock", bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPut,
+				"/products/"+tt.id+"/stock",
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 
 			w := httptest.NewRecorder()
 
@@ -567,10 +649,12 @@ func TestProductHandler_UpdateStock(t *testing.T) {
 
 			if tt.wantError != "" {
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Equal(t, tt.wantError, response.Error)
 			} else {
 				assert.True(t, response.Success)
 			}
+
+			mockService.AssertExpectations(t)
 		})
 	}
 }

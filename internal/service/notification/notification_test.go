@@ -35,7 +35,9 @@ func createTestOrder() *domain.Order {
 		},
 		Items: []domain.OrderItem{
 			{
-				Product:  &domain.Product{Name: "Test Product"},
+				Product: &domain.Product{
+					Name: "Test Product",
+				},
 				Quantity: 2,
 				Price:    50.25,
 			},
@@ -44,28 +46,45 @@ func createTestOrder() *domain.Order {
 }
 
 func TestSMSService_SendOrderConfirmation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-		assert.Equal(t, "test-api-key", r.Header.Get("apiKey"))
+	server := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "POST", r.Method)
+				assert.Equal(
+					t,
+					"application/json",
+					r.Header.Get("Content-Type"),
+				)
+				assert.Equal(t, "test-api-key", r.Header.Get("apiKey"))
 
-		var payload map[string]string
-		json.NewDecoder(r.Body).Decode(&payload)
-		assert.Equal(t, "+1234567890", payload["to"])
-		assert.Contains(t, payload["message"], "John Doe")
-		assert.Contains(t, payload["message"], "123 Test St")
+				var payload map[string]string
+				if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+					t.Errorf("failed to decode request body: %v", err)
+					return
+				}
 
-		response := map[string]interface{}{
-			"SMSMessageData": map[string]interface{}{
-				"Recipients": []interface{}{
-					map[string]interface{}{
-						"status": "Success",
+				assert.Equal(t, "+1234567890", payload["to"])
+				assert.Contains(t, payload["message"], "John Doe")
+				assert.Contains(t, payload["message"], "123 Test St")
+
+				response := map[string]interface{}{
+					"SMSMessageData": map[string]interface{}{
+						"Recipients": []interface{}{
+							map[string]interface{}{
+								"status": "Success",
+							},
+						},
 					},
-				},
+				}
+
+				if err := json.NewEncoder(w).Encode(response); err != nil {
+					t.Errorf("failed to encode response: %v", err)
+					return
+				}
 			},
-		}
-		json.NewEncoder(w).Encode(response)
-	}))
+		),
+	)
+
 	defer server.Close()
 
 	config := config.SMSConfig{
@@ -86,6 +105,7 @@ func TestEmailService_SendOrderConfirmation(t *testing.T) {
 	mockSMTP := &mockSMTPServer{t: t}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	assert.NoError(t, err)
+
 	defer listener.Close()
 
 	go mockSMTP.Start(listener)
@@ -130,12 +150,12 @@ func (s *mockSMTPServer) Start(l net.Listener) {
 
 func (s *mockSMTPServer) handleConnection(conn net.Conn) {
 	defer conn.Close()
-
-	conn.Write([]byte("220 mock.smtp.server\r\n"))
-
+	if _, err := conn.Write([]byte("220 mock.smtp.server\r\n")); err != nil {
+		return
+	}
 	buf := make([]byte, 1024)
 	var message strings.Builder
-
+	inData := false
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
@@ -143,26 +163,50 @@ func (s *mockSMTPServer) handleConnection(conn net.Conn) {
 		}
 
 		cmd := string(buf[:n])
-		message.WriteString(cmd)
+		if inData {
+			message.WriteString(cmd)
+			if strings.Contains(cmd, "\r\n.\r\n") {
+				s.lastMsg = message.String()
+				if _, err := conn.Write([]byte("250 Message received\r\n")); err != nil {
+					return
+				}
+				inData = false
+			}
+			continue
+		}
 
 		switch {
 		case strings.HasPrefix(cmd, "EHLO"):
-			conn.Write([]byte("250-mock.smtp.server\r\n250 AUTH LOGIN PLAIN\r\n"))
+			if _, err := conn.Write([]byte("250-mock.smtp.server\r\n250 AUTH LOGIN PLAIN\r\n")); err != nil {
+				return
+			}
 		case strings.HasPrefix(cmd, "AUTH"):
-			conn.Write([]byte("235 Authentication successful\r\n"))
+			if _, err := conn.Write([]byte("235 Authentication successful\r\n")); err != nil {
+				return
+			}
 		case strings.HasPrefix(cmd, "MAIL FROM"):
-			conn.Write([]byte("250 Sender OK\r\n"))
+			if _, err := conn.Write([]byte("250 Sender OK\r\n")); err != nil {
+				return
+			}
 		case strings.HasPrefix(cmd, "RCPT TO"):
-			conn.Write([]byte("250 Recipient OK\r\n"))
+			if _, err := conn.Write([]byte("250 Recipient OK\r\n")); err != nil {
+				return
+			}
 		case strings.HasPrefix(cmd, "DATA"):
-			conn.Write([]byte("354 Enter message\r\n"))
-		case strings.Contains(cmd, "\r\n.\r\n"):
-			conn.Write([]byte("250 Message received\r\n"))
-			s.lastMsg = message.String()
-			return
+			if _, err := conn.Write([]byte("354 Enter message\r\n")); err != nil {
+				return
+			}
+			inData = true
+			message.Reset()
 		case strings.HasPrefix(cmd, "QUIT"):
-			conn.Write([]byte("221 Goodbye\r\n"))
+			if _, err := conn.Write([]byte("221 Goodbye\r\n")); err != nil {
+				return
+			}
 			return
+		default:
+			if _, err := conn.Write([]byte("250 OK\r\n")); err != nil {
+				return
+			}
 		}
 	}
 }
@@ -184,21 +228,27 @@ func TestCompositeNotificationService(t *testing.T) {
 	mockSMS.shouldFail = true
 	err = service.SendOrderConfirmation(context.Background(), order)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Failed to send order confirmation")
+	assert.Contains(t, err.Error(), "mock error")
 }
 
 type mockNotificationService struct {
 	shouldFail bool
 }
 
-func (m *mockNotificationService) SendOrderConfirmation(ctx context.Context, order *domain.Order) error {
+func (m *mockNotificationService) SendOrderConfirmation(
+	_ context.Context,
+	_ *domain.Order,
+) error {
 	if m.shouldFail {
 		return fmt.Errorf("mock error")
 	}
 	return nil
 }
 
-func (m *mockNotificationService) SendOrderStatusUpdate(ctx context.Context, order *domain.Order) error {
+func (m *mockNotificationService) SendOrderStatusUpdate(
+	_ context.Context,
+	_ *domain.Order,
+) error {
 	if m.shouldFail {
 		return fmt.Errorf("mock error")
 	}

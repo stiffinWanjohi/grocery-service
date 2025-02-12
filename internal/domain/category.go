@@ -8,18 +8,22 @@ import (
 )
 
 type Category struct {
-	ID          uuid.UUID  `json:"id" gorm:"type:uuid;primary_key"`
-	Name        string     `json:"name" gorm:"not null"`
-	Description string     `json:"description"`
-	ParentID    *uuid.UUID `json:"parent_id,omitempty" gorm:"type:uuid"`
-	Level       int        `json:"level" gorm:"not null"`
-	Path        string     `json:"path" gorm:"not null"`
-	Products    []*Product `json:"products,omitempty" gorm:"foreignKey:CategoryID"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID            uuid.UUID   `json:"id"                       gorm:"type:uuid;primary_key"`
+	Name          string      `json:"name"                     gorm:"not null"`
+	Description   string      `json:"description"`
+	ParentID      *uuid.UUID  `json:"parent_id,omitempty"      gorm:"type:uuid"`
+	SubCategories []*Category `json:"sub_categories,omitempty" gorm:"foreignKey:ParentID"`
+	Level         int         `json:"level"                    gorm:"not null"`
+	Path          string      `json:"path"                     gorm:"not null"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
-func NewCategory(name string, description string, parentID *uuid.UUID) *Category {
+func NewCategory(
+	name string,
+	description string,
+	parentID *uuid.UUID,
+) *Category {
 	return &Category{
 		ID:          uuid.New(),
 		Name:        name,
@@ -44,4 +48,8 @@ func (c *Category) Validate() error {
 		return fmt.Errorf("category description cannot exceed 500 characters")
 	}
 	return nil
+}
+
+func (c *Category) ValidatePathFormat(path string) bool {
+	return path != "" && path[0] != '/' && path[len(path)-1] != '/'
 }

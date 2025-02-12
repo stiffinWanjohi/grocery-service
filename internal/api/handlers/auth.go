@@ -14,7 +14,9 @@ type AuthHandler struct {
 	service service.AuthService
 }
 
-func NewAuthHandler(service service.AuthService) *AuthHandler {
+func NewAuthHandler(
+	service service.AuthService,
+) *AuthHandler {
 	return &AuthHandler{service: service}
 }
 
@@ -35,7 +37,10 @@ func (h *AuthHandler) Routes() chi.Router {
 // @Produce json
 // @Success 302
 // @Router /auth/login [get]
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	url := h.service.GetAuthURL()
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
@@ -49,20 +54,56 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 401 {object} api.Response
 // @Router /auth/callback [get]
-func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Callback(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		api.ErrorResponse(w, "Missing authorization code", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Missing authorization code",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
 	authResponse, err := h.service.HandleCallback(r.Context(), code)
 	if err != nil {
-		api.ErrorResponse(w, "Authentication failed", http.StatusUnauthorized)
+		if err := api.ErrorResponse(
+			w,
+			"Authentication failed",
+			http.StatusUnauthorized,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
-	api.SuccessResponse(w, authResponse, http.StatusOK)
+	if err := api.SuccessResponse(w, authResponse, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+		return
+	}
 }
 
 // @Summary Refresh token
@@ -75,20 +116,59 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} api.Response
 // @Failure 401 {object} api.Response
 // @Router /auth/refresh [post]
-func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) RefreshToken(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	var refresh domain.RefreshTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&refresh); err != nil {
-		api.ErrorResponse(w, "Invalid request body", http.StatusBadRequest)
+		if err := api.ErrorResponse(
+			w,
+			"Invalid request body",
+			http.StatusBadRequest,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
-	authResponse, err := h.service.RefreshToken(r.Context(), refresh.RefreshToken)
+	authResponse, err := h.service.RefreshToken(
+		r.Context(),
+		refresh.RefreshToken,
+	)
 	if err != nil {
-		api.ErrorResponse(w, "Token refresh failed", http.StatusUnauthorized)
+		if err := api.ErrorResponse(
+			w,
+			"Token refresh failed",
+			http.StatusUnauthorized,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
-	api.SuccessResponse(w, authResponse, http.StatusOK)
+	if err := api.SuccessResponse(w, authResponse, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+		return
+	}
 }
 
 // @Summary Revoke token
@@ -99,10 +179,23 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} api.Response
 // @Failure 401 {object} api.Response
 // @Router /auth/revoke [post]
-func (h *AuthHandler) RevokeToken(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) RevokeToken(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	token := r.Header.Get("Authorization")
 	if token == "" {
-		api.ErrorResponse(w, "Missing authorization token", http.StatusUnauthorized)
+		if err := api.ErrorResponse(
+			w,
+			"Missing authorization token",
+			http.StatusUnauthorized,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
@@ -112,9 +205,32 @@ func (h *AuthHandler) RevokeToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.RevokeToken(r.Context(), token); err != nil {
-		api.ErrorResponse(w, "Token revocation failed", http.StatusInternalServerError)
+		if err := api.ErrorResponse(
+			w,
+			"Token revocation failed",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
 		return
 	}
 
-	api.SuccessResponse(w, nil, http.StatusOK)
+	if err := api.SuccessResponse(w, nil, http.StatusOK); err != nil {
+		if err := api.ErrorResponse(
+			w,
+			"Failed to send response",
+			http.StatusInternalServerError,
+		); err != nil {
+			http.Error(
+				w,
+				"Failed to send error response",
+				http.StatusInternalServerError,
+			)
+		}
+		return
+	}
 }

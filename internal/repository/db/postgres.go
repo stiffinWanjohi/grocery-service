@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/grocery-service/internal/config"
 	"gorm.io/driver/postgres"
@@ -12,7 +13,9 @@ type PostgresDB struct {
 	DB *gorm.DB
 }
 
-func NewPostgresDB(config *config.DatabaseConfig) (*PostgresDB, error) {
+func NewPostgresDB(
+	config *config.DatabaseConfig,
+) (*PostgresDB, error) {
 	dsn := config.DSN()
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -25,7 +28,6 @@ func NewPostgresDB(config *config.DatabaseConfig) (*PostgresDB, error) {
 		return nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
-	// Set connection pool settings
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 
@@ -33,17 +35,14 @@ func NewPostgresDB(config *config.DatabaseConfig) (*PostgresDB, error) {
 }
 
 // NewTestDB creates a new PostgresDB instance for testing
-func NewTestDB() (*PostgresDB, error) {
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		"localhost",
-		"postgres",
-		"postgres",
-		"grocery_test",
-		"5432",
+func NewTestDB(
+	config *config.TestDatabaseConfig,
+) (*PostgresDB, error) {
+	testDsn := config.TestDSN()
+	db, err := gorm.Open(
+		postgres.Open(testDsn),
+		&gorm.Config{},
 	)
-
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to test database: %w", err)
 	}
@@ -53,7 +52,6 @@ func NewTestDB() (*PostgresDB, error) {
 		return nil, fmt.Errorf("failed to get test database instance: %w", err)
 	}
 
-	// Set connection pool settings for test DB
 	sqlDB.SetMaxIdleConns(5)
 	sqlDB.SetMaxOpenConns(10)
 
@@ -61,9 +59,20 @@ func NewTestDB() (*PostgresDB, error) {
 }
 
 func (db *PostgresDB) Close() error {
+	if db == nil || db.DB == nil {
+		return fmt.Errorf("invalid database connection")
+	}
+
 	sqlDB, err := db.DB.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get database instance: %w", err)
 	}
 	return sqlDB.Close()
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

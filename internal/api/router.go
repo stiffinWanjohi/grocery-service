@@ -42,14 +42,23 @@ func NewRouter(
 	}))
 
 	// Health check
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "healthy",
-			"time":   time.Now().UTC().Format(time.RFC3339),
-		})
-	})
+	r.Get(
+		"/health",
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(map[string]string{
+				"status": "healthy",
+				"time":   time.Now().UTC().Format(time.RFC3339),
+			}); err != nil {
+				http.Error(
+					w,
+					"Internal Server Error",
+					http.StatusInternalServerError,
+				)
+			}
+		},
+	)
 
 	// Swagger endpoint
 	r.Get("/swagger/*", httpSwagger.Handler(
@@ -64,7 +73,8 @@ func NewRouter(
 		r.Get("/login", authHandler.Login)
 		r.Get("/callback", authHandler.Callback)
 		r.Post("/refresh", authHandler.RefreshToken)
-		r.With(customMiddleware.Authentication(authConfig)).Post("/revoke", authHandler.RevokeToken)
+		r.With(customMiddleware.Authentication(authConfig)).
+			Post("/revoke", authHandler.RevokeToken)
 	})
 
 	// API routes
@@ -72,7 +82,28 @@ func NewRouter(
 		// Public routes
 		r.Group(func(r chi.Router) {
 			r.Mount("/categories", categoryHandler.Routes())
-			r.Get("/products", productHandler.List)
+		})
+
+		// Product routes - combining public and protected endpoints
+		r.Route("/products", func(r chi.Router) {
+			// Public endpoints
+			r.Get("/", productHandler.List)
+
+			// Admin only routes - apply auth first, then admin check
+			r.Group(func(r chi.Router) {
+				r.Use(customMiddleware.Authentication(authConfig))
+				r.Use(customMiddleware.RequireAdmin)
+
+				r.Post("/", productHandler.Create)
+				r.Put("/{id}", productHandler.Update)
+				r.Delete("/{id}", productHandler.Delete)
+			})
+
+			// Protected endpoints
+			r.Group(func(r chi.Router) {
+				r.Use(customMiddleware.Authentication(authConfig))
+				r.Get("/{id}", productHandler.GetByID)
+			})
 		})
 
 		// Protected routes
@@ -82,32 +113,22 @@ func NewRouter(
 			// Customer routes
 			r.Mount("/customers", customerHandler.Routes())
 
-			// Product routes
-			r.Route("/products", func(r chi.Router) {
-				r.Get("/{id}", productHandler.GetByID)
-
-				// Admin only routes
-				r.Group(func(r chi.Router) {
-					r.Use(customMiddleware.RequireAdmin)
-					r.Post("/", productHandler.Create)
-					r.Put("/{id}", productHandler.Update)
-					r.Delete("/{id}", productHandler.Delete)
-				})
-			})
-
 			// Order routes
 			r.Route("/orders", func(r chi.Router) {
 				// Customer routes
 				r.Group(func(r chi.Router) {
 					r.Use(customMiddleware.RequireCustomer)
 					r.Post("/", orderHandler.Create)
-					r.Get("/me", orderHandler.ListByCustomerID)
+					r.Get(
+						"/customer/{customer_id}",
+						orderHandler.ListByCustomerID,
+					)
 				})
 
 				// Admin routes
 				r.Group(func(r chi.Router) {
 					r.Use(customMiddleware.RequireAdmin)
-					r.Get("/", orderHandler.List)
+					r.Get("/all", orderHandler.List)
 					r.Get("/{id}", orderHandler.GetByID)
 					r.Put("/{id}/status", orderHandler.UpdateStatus)
 				})

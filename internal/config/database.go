@@ -13,3 +13,15 @@ func (c *DatabaseConfig) DSN() string {
 		c.SSLMode,
 	)
 }
+
+func (c *TestDatabaseConfig) TestDSN() string {
+	return fmt.Sprintf(
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		c.Host,
+		c.Port,
+		c.User,
+		c.Password,
+		c.Name,
+		c.SSLMode,
+	)
+}

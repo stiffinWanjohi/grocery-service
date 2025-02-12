@@ -1,20 +1,6 @@
 basePath: /api/v1
 definitions:
-  api.Response:
-    description: Standard API response structure
-    properties:
-      data:
-        description: Contains the response data (if any)
-      error:
-        description: Contains error message (if any)
-        example: Invalid request parameters
-        type: string
-      success:
-        description: Indicates if the request was successful
-        example: true
-        type: boolean
-    type: object
-  domain.AuthResponse:
+  github_com_grocery-service_internal_domain.AuthResponse:
     properties:
       access_token:
         type: string
@@ -25,9 +11,9 @@ definitions:
       token_type:
         type: string
       user:
-        $ref: '#/definitions/domain.User'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.User'
     type: object
-  domain.Category:
+  github_com_grocery-service_internal_domain.Category:
     properties:
       created_at:
         type: string
@@ -43,52 +29,44 @@ definitions:
         type: string
       path:
         type: string
-      products:
-        items:
-          $ref: '#/definitions/domain.Product'
-        type: array
       updated_at:
         type: string
     type: object
-  domain.Customer:
+  github_com_grocery-service_internal_domain.Customer:
     properties:
       created_at:
         type: string
       id:
         type: string
-      orders:
-        items:
-          $ref: '#/definitions/domain.Order'
-        type: array
       updated_at:
         type: string
       user:
-        $ref: '#/definitions/domain.User'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.User'
       user_id:
         type: string
     type: object
-  domain.Order:
+  github_com_grocery-service_internal_domain.Order:
     properties:
       created_at:
         type: string
       customer:
-        $ref: '#/definitions/domain.Customer'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.Customer'
       customer_id:
         type: string
       id:
         type: string
       items:
         items:
-          $ref: '#/definitions/domain.OrderItem'
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.OrderItem'
         type: array
       status:
-        $ref: '#/definitions/domain.OrderStatus'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.OrderStatus'
       total_price:
         type: number
       updated_at:
         type: string
     type: object
-  domain.OrderItem:
+  github_com_grocery-service_internal_domain.OrderItem:
     properties:
       created_at:
         type: string
@@ -99,7 +77,7 @@ definitions:
       price:
         type: number
       product:
-        $ref: '#/definitions/domain.Product'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
       product_id:
         type: string
       quantity:
@@ -107,7 +85,7 @@ definitions:
       updated_at:
         type: string
     type: object
-  domain.OrderStatus:
+  github_com_grocery-service_internal_domain.OrderStatus:
     enum:
     - PENDING
     - CONFIRMED
@@ -129,10 +107,10 @@ definitions:
     - OrderStatusCancelled
     - OrderStatusRefunded
     - OrderStatusFailed
-  domain.Product:
+  github_com_grocery-service_internal_domain.Product:
     properties:
       category:
-        $ref: '#/definitions/domain.Category'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
       category_id:
         type: string
       created_at:
@@ -150,21 +128,19 @@ definitions:
       updated_at:
         type: string
     type: object
-  domain.RefreshTokenRequest:
+  github_com_grocery-service_internal_domain.RefreshTokenRequest:
     properties:
       refresh_token:
         type: string
     required:
     - refresh_token
     type: object
-  domain.User:
+  github_com_grocery-service_internal_domain.User:
     properties:
       address:
         type: string
       created_at:
         type: string
-      customer:
-        $ref: '#/definitions/domain.Customer'
       email:
         type: string
       id:
@@ -176,11 +152,11 @@ definitions:
       picture:
         type: string
       role:
-        $ref: '#/definitions/domain.UserRole'
+        $ref: '#/definitions/github_com_grocery-service_internal_domain.UserRole'
       updated_at:
         type: string
     type: object
-  domain.UserRole:
+  github_com_grocery-service_internal_domain.UserRole:
     enum:
     - admin
     - customer
@@ -188,958 +164,27 @@ definitions:
     x-enum-varnames:
     - AdminRole
     - CustomerRole
+  github_com_grocery-service_utils_api.Response:
+    description: Standard API response structure
+    properties:
+      data:
+        description: Contains the response data (if any)
+      error:
+        description: Contains error message (if any)
+        example: Invalid request parameters
+        type: string
+      success:
+        description: Indicates if the request was successful
+        example: true
+        type: boolean
+    type: object
 host: localhost:8080
 info:
-  contact:
-    email: support@swagger.io
-    name: API Support
-    url: http://www.swagger.io/support
+  contact: {}
   description: API for managing grocery store operations
-  license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
   title: Grocery Service API
   version: "1.0"
 paths:
-  /api/v1/categories:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all categories
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Category'
-                  type: array
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: List all categories
-      tags:
-      - categories
-    post:
-      consumes:
-      - application/json
-      description: Create a new category with the provided data
-      parameters:
-      - description: Category object
-        in: body
-        name: category
-        required: true
-        schema:
-          $ref: '#/definitions/domain.Category'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Category'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Create a new category
-      tags:
-      - categories
-  /api/v1/categories/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete a category by its ID
-      parameters:
-      - description: Category ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-          schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Delete a category
-      tags:
-      - categories
-    get:
-      consumes:
-      - application/json
-      description: Get a category's details by its ID
-      parameters:
-      - description: Category ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Category'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Get a category by ID
-      tags:
-      - categories
-    put:
-      consumes:
-      - application/json
-      description: Update an existing category's details
-      parameters:
-      - description: Category ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Category object
-        in: body
-        name: category
-        required: true
-        schema:
-          $ref: '#/definitions/domain.Category'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Category'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Update a category
-      tags:
-      - categories
-  /api/v1/categories/{id}/subcategories:
-    get:
-      consumes:
-      - application/json
-      description: Get all subcategories for a given parent category ID
-      parameters:
-      - description: Parent Category ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Category'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: List subcategories
-      tags:
-      - categories
-  /api/v1/customers:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all customers (admin only)
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Customer'
-                  type: array
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      security:
-      - Bearer: []
-      summary: List all customers
-      tags:
-      - customers
-    post:
-      consumes:
-      - application/json
-      description: Create a customer profile for the authenticated user
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Customer'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.Response'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      security:
-      - Bearer: []
-      summary: Create customer profile
-      tags:
-      - customers
-  /api/v1/customers/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete a customer profile by ID (admin only)
-      parameters:
-      - description: Customer ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-          schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      security:
-      - Bearer: []
-      summary: Delete a customer
-      tags:
-      - customers
-    get:
-      consumes:
-      - application/json
-      description: Get a customer profile by ID (admin only)
-      parameters:
-      - description: Customer ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Customer'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      security:
-      - Bearer: []
-      summary: Get customer by ID
-      tags:
-      - customers
-  /api/v1/customers/me:
-    get:
-      consumes:
-      - application/json
-      description: Get the customer profile for the authenticated user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Customer'
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      security:
-      - Bearer: []
-      summary: Get current customer profile
-      tags:
-      - customers
-  /api/v1/orders:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all orders
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Order'
-                  type: array
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: List all orders
-      tags:
-      - orders
-    post:
-      consumes:
-      - application/json
-      description: Create a new order with the provided data
-      parameters:
-      - description: Order object
-        in: body
-        name: order
-        required: true
-        schema:
-          $ref: '#/definitions/domain.Order'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Order'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Create a new order
-      tags:
-      - orders
-  /api/v1/orders/{id}:
-    get:
-      consumes:
-      - application/json
-      description: Get an order's details by its ID
-      parameters:
-      - description: Order ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Order'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Get an order by ID
-      tags:
-      - orders
-  /api/v1/orders/{id}/items:
-    post:
-      consumes:
-      - application/json
-      description: Add a new item to an existing order
-      parameters:
-      - description: Order ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Order item object
-        in: body
-        name: item
-        required: true
-        schema:
-          $ref: '#/definitions/domain.OrderItem'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.OrderItem'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Add order item
-      tags:
-      - orders
-  /api/v1/orders/{id}/items/{itemID}:
-    delete:
-      consumes:
-      - application/json
-      description: Remove an item from an existing order
-      parameters:
-      - description: Order ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Item ID
-        format: uuid
-        in: path
-        name: itemID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-          schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Remove order item
-      tags:
-      - orders
-  /api/v1/orders/{id}/status:
-    put:
-      consumes:
-      - application/json
-      description: Update the status of an existing order
-      parameters:
-      - description: Order ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Status object
-        in: body
-        name: status
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Update order status
-      tags:
-      - orders
-  /api/v1/orders/customer/{customerID}:
-    get:
-      consumes:
-      - application/json
-      description: Get all orders for a specific customer
-      parameters:
-      - description: Customer ID
-        format: uuid
-        in: path
-        name: customerID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Order'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: List customer orders
-      tags:
-      - orders
-  /api/v1/products:
-    get:
-      consumes:
-      - application/json
-      description: Get a list of all products
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Product'
-                  type: array
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: List all products
-      tags:
-      - products
-    post:
-      consumes:
-      - application/json
-      description: Create a new product with the provided data
-      parameters:
-      - description: Product object
-        in: body
-        name: product
-        required: true
-        schema:
-          $ref: '#/definitions/domain.Product'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Product'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Create a new product
-      tags:
-      - products
-  /api/v1/products/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete a product by its ID
-      parameters:
-      - description: Product ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-          schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Delete a product
-      tags:
-      - products
-    get:
-      consumes:
-      - application/json
-      description: Get a product's details by its ID
-      parameters:
-      - description: Product ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Product'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Get a product by ID
-      tags:
-      - products
-    put:
-      consumes:
-      - application/json
-      description: Update an existing product's details
-      parameters:
-      - description: Product ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Product object
-        in: body
-        name: product
-        required: true
-        schema:
-          $ref: '#/definitions/domain.Product'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/domain.Product'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Update a product
-      tags:
-      - products
-  /api/v1/products/{id}/stock:
-    put:
-      consumes:
-      - application/json
-      description: Update the stock quantity of a product
-      parameters:
-      - description: Product ID
-        format: uuid
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Stock update request
-        in: body
-        name: request
-        required: true
-        schema:
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/api.Response'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: Update product stock
-      tags:
-      - products
-  /api/v1/products/category/{categoryID}:
-    get:
-      consumes:
-      - application/json
-      description: Get all products in a specific category
-      parameters:
-      - description: Category ID
-        format: uuid
-        in: path
-        name: categoryID
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/api.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/domain.Product'
-                  type: array
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/api.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/api.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/api.Response'
-      summary: List products by category
-      tags:
-      - products
   /auth/callback:
     get:
       description: Handle OpenID callback and create session
@@ -1156,19 +201,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/domain.AuthResponse'
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.AuthResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
       summary: OpenID Connect callback
       tags:
       - auth
@@ -1194,7 +239,7 @@ paths:
         name: refresh
         required: true
         schema:
-          $ref: '#/definitions/domain.RefreshTokenRequest'
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.RefreshTokenRequest'
       produces:
       - application/json
       responses:
@@ -1202,19 +247,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.Response'
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/domain.AuthResponse'
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.AuthResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
       summary: Refresh token
       tags:
       - auth
@@ -1227,16 +272,954 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/api.Response'
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
       security:
       - Bearer: []
       summary: Revoke token
       tags:
       - auth
+  /categories:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: List all categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Create a new category with the provided data
+      parameters:
+      - description: Category object
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Create a new category
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a category by its ID
+      parameters:
+      - description: Category ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Delete a category
+      tags:
+      - categories
+    get:
+      consumes:
+      - application/json
+      description: Get a category's details by its ID
+      parameters:
+      - description: Category ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Get a category by ID
+      tags:
+      - categories
+    put:
+      consumes:
+      - application/json
+      description: Update an existing category's details
+      parameters:
+      - description: Category ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Category object
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Update a category
+      tags:
+      - categories
+  /categories/{id}/subcategories:
+    get:
+      consumes:
+      - application/json
+      description: Get all subcategories for a given parent category ID
+      parameters:
+      - description: Parent Category ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: List subcategories
+      tags:
+      - categories
+  /customers:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all customers (admin only)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Customer'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      security:
+      - Bearer: []
+      summary: List all customers
+      tags:
+      - customers
+    post:
+      consumes:
+      - application/json
+      description: Create a customer profile for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Customer'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      security:
+      - Bearer: []
+      summary: Create customer profile
+      tags:
+      - customers
+  /customers/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a customer profile by ID (admin only)
+      parameters:
+      - description: Customer ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      security:
+      - Bearer: []
+      summary: Delete a customer
+      tags:
+      - customers
+    get:
+      consumes:
+      - application/json
+      description: Get a customer profile by ID (admin only)
+      parameters:
+      - description: Customer ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Customer'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      security:
+      - Bearer: []
+      summary: Get customer by ID
+      tags:
+      - customers
+  /customers/me:
+    get:
+      consumes:
+      - application/json
+      description: Get the customer profile for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Customer'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      security:
+      - Bearer: []
+      summary: Get current customer profile
+      tags:
+      - customers
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all orders
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Order'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: List all orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new order with the provided data
+      parameters:
+      - description: Order object
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.Order'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Order'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Create a new order
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get an order's details by its ID
+      parameters:
+      - description: Order ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Order'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Get an order by ID
+      tags:
+      - orders
+  /orders/{id}/items:
+    post:
+      consumes:
+      - application/json
+      description: Add a new item to an existing order
+      parameters:
+      - description: Order ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Order item object
+        in: body
+        name: item
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.OrderItem'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.OrderItem'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Add order item
+      tags:
+      - orders
+  /orders/{id}/items/{itemID}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove an item from an existing order
+      parameters:
+      - description: Order ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Item ID
+        format: uuid
+        in: path
+        name: itemID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Remove order item
+      tags:
+      - orders
+  /orders/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of an existing order
+      parameters:
+      - description: Order ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status object
+        in: body
+        name: status
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Update order status
+      tags:
+      - orders
+  /orders/customer/{customerID}:
+    get:
+      consumes:
+      - application/json
+      description: Get all orders for a specific customer
+      parameters:
+      - description: Customer ID
+        format: uuid
+        in: path
+        name: customerID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Order'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: List customer orders
+      tags:
+      - orders
+  /products:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all products
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: List all products
+      tags:
+      - products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product with the provided data
+      parameters:
+      - description: Product object
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Create a new product
+      tags:
+      - products
+  /products/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a product by its ID
+      parameters:
+      - description: Product ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Delete a product
+      tags:
+      - products
+    get:
+      consumes:
+      - application/json
+      description: Get a product's details by its ID
+      parameters:
+      - description: Product ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Get a product by ID
+      tags:
+      - products
+    put:
+      consumes:
+      - application/json
+      description: Update an existing product's details
+      parameters:
+      - description: Product ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product object
+        in: body
+        name: product
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Update a product
+      tags:
+      - products
+  /products/{id}/stock:
+    put:
+      consumes:
+      - application/json
+      description: Update the stock quantity of a product
+      parameters:
+      - description: Product ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stock update request
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: Update product stock
+      tags:
+      - products
+  /products/category/{categoryID}:
+    get:
+      consumes:
+      - application/json
+      description: Get all products in a specific category
+      parameters:
+      - description: Category ID
+        format: uuid
+        in: path
+        name: categoryID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/github_com_grocery-service_internal_domain.Product'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/github_com_grocery-service_utils_api.Response'
+      summary: List products by category
+      tags:
+      - products
 securityDefinitions:
   bearerAuth:
     description: Enter the token with the `Bearer ` prefix, e.g. "Bearer abcde12345".

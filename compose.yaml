@@ -12,11 +12,14 @@ services:
             - DB_PORT=${DB_PORT:-5432}
             - DB_USER=${DB_USER:-postgres}
             - DB_PASSWORD=${DB_PASSWORD:-postgres}
-            - DB_NAME=${DB_NAME:-grocery_db}
+            - DB_NAME=${DB_NAME:-grocery}
             - DB_SSLMODE=${DB_SSLMODE:-disable}
             - JWT_SECRET=${JWT_SECRET}
             - JWT_ISSUER=${JWT_ISSUER:-grocery-service}
             - SMS_ENVIRONMENT=${SMS_ENVIRONMENT:-sandbox}
+            - TEST_DB_HOST=${TEST_DB_HOST:-postgres}
+            - TEST_DB_PORT=${TEST_DB_PORT:-5432}
+            - TEST_DB_NAME=${TEST_DB_NAME:-grocery_test}
         depends_on:
             postgres:
                 condition: service_healthy
@@ -27,14 +30,16 @@ services:
 
     postgres:
         image: postgres:15-alpine
+        hostname: postgres
         ports:
             - "${DB_PORT_EXTERNAL:-5433}:5432"
         environment:
             - POSTGRES_USER=${DB_USER:-postgres}
             - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
-            - POSTGRES_DB=${DB_NAME:-grocery_db}
+            - POSTGRES_MULTIPLE_DATABASES=${DB_NAME:-grocery},${TEST_DB_NAME:-grocery_test}
         volumes:
             - postgres_data:/var/lib/postgresql/data
+            - ./scripts/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
         networks:
             - grocery-network
         healthcheck:
@@ -48,8 +53,14 @@ services:
         environment:
             - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-nehigna@gmail.com}
             - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+            - PGADMIN_CONFIG_SERVER_MODE=False
+            - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+            - PGADMIN_SERVER_JSON_FILE=/pgadmin4/servers.json
         ports:
             - "${PGADMIN_PORT:-5050}:80"
+        volumes:
+            - ./config/pgadmin/servers.json:/pgadmin4/servers.json
+            - pgadmin_data:/var/lib/pgadmin
         depends_on:
             - postgres
         networks:
@@ -57,6 +68,7 @@ services:
 
 volumes:
     postgres_data:
+    pgadmin_data:
 
 networks:
     grocery-network:

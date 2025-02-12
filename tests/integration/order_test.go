@@ -20,7 +20,10 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func setupOrderTest() (*serviceMock.OrderService, *handler.OrderHandler) {
+func setupOrderTest() (
+	*serviceMock.OrderService,
+	*handler.OrderHandler,
+) {
 	mockService := new(serviceMock.OrderService)
 	handler := handler.NewOrderHandler(mockService)
 	return mockService, handler
@@ -54,8 +57,10 @@ func TestOrderHandler_Create(t *testing.T) {
 			},
 			setupMock: func(o *domain.Order) {
 				mockService.On("Create", mock.Anything, mock.MatchedBy(func(order *domain.Order) bool {
-					return order.CustomerID == o.CustomerID && order.TotalPrice == o.TotalPrice
-				})).Return(nil)
+					return order.CustomerID == o.CustomerID &&
+						order.TotalPrice == o.TotalPrice
+				})).
+					Return(nil)
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -68,11 +73,13 @@ func TestOrderHandler_Create(t *testing.T) {
 			},
 			setupMock: func(o *domain.Order) {
 				mockService.On("Create", mock.Anything, mock.MatchedBy(func(order *domain.Order) bool {
-					return order.CustomerID == o.CustomerID && order.TotalPrice == o.TotalPrice
-				})).Return(customErrors.ErrInvalidOrderData)
+					return order.CustomerID == o.CustomerID &&
+						order.TotalPrice == o.TotalPrice
+				})).
+					Return(customErrors.ErrInvalidOrderData)
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid order data",
+			wantError:  "invalid order data",
 		},
 	}
 
@@ -81,7 +88,11 @@ func TestOrderHandler_Create(t *testing.T) {
 			tt.setupMock(tt.order)
 
 			jsonBody, _ := json.Marshal(tt.order)
-			req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/orders",
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
@@ -126,12 +137,13 @@ func TestOrderHandler_GetByID(t *testing.T) {
 			name: "Success",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(&domain.Order{
-					ID:         testID,
-					CustomerID: customerID,
-					TotalPrice: 49.98,
-					Status:     domain.OrderStatusPreparing,
-				}, nil)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(&domain.Order{
+						ID:         testID,
+						CustomerID: customerID,
+						TotalPrice: 49.98,
+						Status:     domain.OrderStatusPreparing,
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -146,7 +158,9 @@ func TestOrderHandler_GetByID(t *testing.T) {
 			name: "Not Found",
 			id:   testID.String(),
 			setupMock: func() {
-				mockService.On("GetByID", mock.Anything, testID.String()).Return(nil, customErrors.ErrOrderNotFound)
+				mockService.On("GetByID", mock.Anything, testID.String()).
+					Return(nil, customErrors.ErrOrderNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Order not found",
@@ -155,12 +169,15 @@ func TestOrderHandler_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
 			req := httptest.NewRequest(http.MethodGet, "/orders/"+tt.id, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.GetByID(w, req)
@@ -201,20 +218,21 @@ func TestOrderHandler_List(t *testing.T) {
 		{
 			name: "Success",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return([]domain.Order{
-					{
-						ID:         uuid.New(),
-						CustomerID: uuid.New(),
-						TotalPrice: 29.99,
-						Status:     domain.OrderStatusPending,
-					},
-					{
-						ID:         uuid.New(),
-						CustomerID: uuid.New(),
-						TotalPrice: 49.98,
-						Status:     domain.OrderStatusConfirmed,
-					},
-				}, nil)
+				mockService.On("List", mock.Anything).
+					Return([]domain.Order{
+						{
+							ID:         uuid.New(),
+							CustomerID: uuid.New(),
+							TotalPrice: 29.99,
+							Status:     domain.OrderStatusPending,
+						},
+						{
+							ID:         uuid.New(),
+							CustomerID: uuid.New(),
+							TotalPrice: 49.98,
+							Status:     domain.OrderStatusConfirmed,
+						},
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -222,7 +240,9 @@ func TestOrderHandler_List(t *testing.T) {
 		{
 			name: "Internal Error",
 			setupMock: func() {
-				mockService.On("List", mock.Anything).Return(nil, fmt.Errorf("database error"))
+				mockService.On("List", mock.Anything).
+					Return([]domain.Order{}, fmt.Errorf("database error")).
+					Once()
 			},
 			wantStatus: http.StatusInternalServerError,
 			wantError:  "Failed to list orders",
@@ -231,6 +251,7 @@ func TestOrderHandler_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			req := httptest.NewRequest(http.MethodGet, "/orders", nil)
@@ -246,7 +267,11 @@ func TestOrderHandler_List(t *testing.T) {
 
 			if tt.wantError != "" {
 				assert.False(t, response.Success)
-				assert.Contains(t, response.Error, tt.wantError)
+				assert.Contains(
+					t,
+					response.Error,
+					tt.wantError,
+				)
 			} else {
 				assert.True(t, response.Success)
 				var orders []domain.Order
@@ -276,20 +301,21 @@ func TestOrderHandler_ListByCustomerID(t *testing.T) {
 			name:       "Success",
 			customerID: customerID.String(),
 			setupMock: func() {
-				mockService.On("ListByCustomerID", mock.Anything, customerID.String()).Return([]domain.Order{
-					{
-						ID:         uuid.New(),
-						CustomerID: customerID,
-						TotalPrice: 29.99,
-						Status:     domain.OrderStatusPending,
-					},
-					{
-						ID:         uuid.New(),
-						CustomerID: customerID,
-						TotalPrice: 49.98,
-						Status:     domain.OrderStatusShipped,
-					},
-				}, nil)
+				mockService.On("ListByCustomerID", mock.Anything, customerID.String()).
+					Return([]domain.Order{
+						{
+							ID:         uuid.New(),
+							CustomerID: customerID,
+							TotalPrice: 29.99,
+							Status:     domain.OrderStatusPending,
+						},
+						{
+							ID:         uuid.New(),
+							CustomerID: customerID,
+							TotalPrice: 49.98,
+							Status:     domain.OrderStatusShipped,
+						},
+					}, nil)
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  2,
@@ -305,7 +331,9 @@ func TestOrderHandler_ListByCustomerID(t *testing.T) {
 			name:       "No Orders Found",
 			customerID: customerID.String(),
 			setupMock: func() {
-				mockService.On("ListByCustomerID", mock.Anything, customerID.String()).Return([]domain.Order{}, nil)
+				mockService.On("ListByCustomerID", mock.Anything, customerID.String()).
+					Return(make([]domain.Order, 0), nil).
+					Once()
 			},
 			wantStatus: http.StatusOK,
 			wantCount:  0,
@@ -314,12 +342,19 @@ func TestOrderHandler_ListByCustomerID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("customerID", tt.customerID)
-			req := httptest.NewRequest(http.MethodGet, "/orders/customer/"+tt.customerID, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodGet,
+				"/orders/customer/"+tt.customerID,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.ListByCustomerID(w, req)
@@ -366,7 +401,9 @@ func TestOrderHandler_UpdateStatus(t *testing.T) {
 			id:     testID.String(),
 			status: domain.OrderStatusDelivered,
 			setupMock: func() {
-				mockService.On("UpdateStatus", mock.Anything, testID.String(), domain.OrderStatusDelivered).Return(nil)
+				mockService.On("UpdateStatus", mock.Anything, testID.String(), domain.OrderStatusDelivered).
+					Return(nil).
+					Once()
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -375,17 +412,21 @@ func TestOrderHandler_UpdateStatus(t *testing.T) {
 			id:     testID.String(),
 			status: "invalid_status",
 			setupMock: func() {
-				mockService.On("UpdateStatus", mock.Anything, testID.String(), mock.AnythingOfType("domain.OrderStatus")).Return(customErrors.ErrOrderStatusInvalid)
+				mockService.On("UpdateStatus", mock.Anything, testID.String(), domain.OrderStatus("invalid_status")).
+					Return(customErrors.ErrOrderStatusInvalid).
+					Once()
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid order status",
+			wantError:  "invalid order status",
 		},
 		{
 			name:   "Order Not Found",
 			id:     testID.String(),
 			status: domain.OrderStatusDelivered,
 			setupMock: func() {
-				mockService.On("UpdateStatus", mock.Anything, testID.String(), domain.OrderStatusDelivered).Return(customErrors.ErrOrderNotFound)
+				mockService.On("UpdateStatus", mock.Anything, testID.String(), domain.OrderStatusDelivered).
+					Return(customErrors.ErrOrderNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Order not found",
@@ -394,6 +435,7 @@ func TestOrderHandler_UpdateStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			statusUpdate := struct {
@@ -403,12 +445,18 @@ func TestOrderHandler_UpdateStatus(t *testing.T) {
 			}
 
 			jsonBody, _ := json.Marshal(statusUpdate)
-			req := httptest.NewRequest(http.MethodPut, "/orders/"+tt.id+"/status", bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPut,
+				"/orders/"+tt.id+"/status",
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.id)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 
 			w := httptest.NewRecorder()
 
@@ -453,7 +501,12 @@ func TestOrderHandler_AddOrderItem(t *testing.T) {
 				Price:     9.99,
 			},
 			setupMock: func() {
-				mockService.On("AddOrderItem", mock.Anything, orderID.String(), mock.AnythingOfType("*domain.OrderItem")).Return(nil)
+				mockService.On(
+					"AddOrderItem",
+					mock.Anything,
+					orderID.String(),
+					mock.AnythingOfType("*domain.OrderItem"),
+				).Return(nil).Once()
 			},
 			wantStatus: http.StatusCreated,
 		},
@@ -479,7 +532,12 @@ func TestOrderHandler_AddOrderItem(t *testing.T) {
 				Price:     9.99,
 			},
 			setupMock: func() {
-				mockService.On("AddOrderItem", mock.Anything, orderID.String(), mock.AnythingOfType("*domain.OrderItem")).Return(customErrors.ErrOrderNotFound)
+				mockService.On(
+					"AddOrderItem",
+					mock.Anything,
+					orderID.String(),
+					mock.AnythingOfType("*domain.OrderItem"),
+				).Return(customErrors.ErrOrderNotFound).Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Order not found",
@@ -490,28 +548,40 @@ func TestOrderHandler_AddOrderItem(t *testing.T) {
 			item: &domain.OrderItem{
 				ProductID: productID,
 				OrderID:   orderID,
-				Quantity:  0, // Invalid quantity
+				Quantity:  0,
 				Price:     9.99,
 			},
 			setupMock: func() {
-				mockService.On("AddOrderItem", mock.Anything, orderID.String(), mock.AnythingOfType("*domain.OrderItem")).Return(customErrors.ErrInvalidOrderItemData)
+				mockService.On(
+					"AddOrderItem",
+					mock.Anything,
+					orderID.String(),
+					mock.AnythingOfType("*domain.OrderItem"),
+				).Return(customErrors.ErrInvalidOrderItemData).Once()
 			},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "Invalid order item data",
+			wantError:  "invalid order item data",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			jsonBody, _ := json.Marshal(tt.item)
-			req := httptest.NewRequest(http.MethodPost, "/orders/"+tt.orderID+"/items", bytes.NewBuffer(jsonBody))
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/orders/"+tt.orderID+"/items",
+				bytes.NewBuffer(jsonBody),
+			)
 			req.Header.Set("Content-Type", "application/json")
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.orderID)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 
 			w := httptest.NewRecorder()
 
@@ -529,8 +599,10 @@ func TestOrderHandler_AddOrderItem(t *testing.T) {
 			} else {
 				assert.True(t, response.Success)
 				var returnedItem domain.OrderItem
+
 				itemData, err := json.Marshal(response.Data)
 				assert.NoError(t, err)
+
 				err = json.Unmarshal(itemData, &returnedItem)
 				assert.NoError(t, err)
 				assert.Equal(t, tt.item.ProductID, returnedItem.ProductID)
@@ -559,7 +631,8 @@ func TestOrderHandler_RemoveOrderItem(t *testing.T) {
 			orderID: orderID.String(),
 			itemID:  itemID.String(),
 			setupMock: func() {
-				mockService.On("RemoveOrderItem", mock.Anything, orderID.String(), itemID.String()).Return(nil)
+				mockService.On("RemoveOrderItem", mock.Anything, orderID.String(), itemID.String()).
+					Return(nil)
 			},
 			wantStatus: http.StatusNoContent,
 		},
@@ -584,7 +657,9 @@ func TestOrderHandler_RemoveOrderItem(t *testing.T) {
 			orderID: orderID.String(),
 			itemID:  itemID.String(),
 			setupMock: func() {
-				mockService.On("RemoveOrderItem", mock.Anything, orderID.String(), itemID.String()).Return(customErrors.ErrOrderNotFound)
+				mockService.On("RemoveOrderItem", mock.Anything, orderID.String(), itemID.String()).
+					Return(customErrors.ErrOrderNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Order not found",
@@ -594,7 +669,9 @@ func TestOrderHandler_RemoveOrderItem(t *testing.T) {
 			orderID: orderID.String(),
 			itemID:  itemID.String(),
 			setupMock: func() {
-				mockService.On("RemoveOrderItem", mock.Anything, orderID.String(), itemID.String()).Return(customErrors.ErrOrderItemNotFound)
+				mockService.On("RemoveOrderItem", mock.Anything, orderID.String(), itemID.String()).
+					Return(customErrors.ErrOrderItemNotFound).
+					Once()
 			},
 			wantStatus: http.StatusNotFound,
 			wantError:  "Order item not found",
@@ -603,13 +680,20 @@ func TestOrderHandler_RemoveOrderItem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockService.ExpectedCalls = nil
 			tt.setupMock()
 
 			rctx := chi.NewRouteContext()
 			rctx.URLParams.Add("id", tt.orderID)
 			rctx.URLParams.Add("itemID", tt.itemID)
-			req := httptest.NewRequest(http.MethodDelete, "/orders/"+tt.orderID+"/items/"+tt.itemID, nil)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			req := httptest.NewRequest(
+				http.MethodDelete,
+				"/orders/"+tt.orderID+"/items/"+tt.itemID,
+				nil,
+			)
+			req = req.WithContext(
+				context.WithValue(req.Context(), chi.RouteCtxKey, rctx),
+			)
 			w := httptest.NewRecorder()
 
 			handler.RemoveOrderItem(w, req)
@@ -622,7 +706,11 @@ func TestOrderHandler_RemoveOrderItem(t *testing.T) {
 				assert.NoError(t, err)
 				assert.False(t, response.Success)
 				assert.Contains(t, response.Error, tt.wantError)
+			} else {
+				assert.Equal(t, w.Code, http.StatusNoContent)
+				assert.Empty(t, w.Body.String())
 			}
+			mockService.AssertExpectations(t)
 		})
 	}
 }
