@@ -29,6 +29,10 @@ definitions:
         type: string
       path:
         type: string
+      sub_categories:
+        items:
+          $ref: '#/definitions/github_com_grocery-service_internal_domain.Category'
+        type: array
       updated_at:
         type: string
     type: object
@@ -167,14 +171,11 @@ definitions:
   github_com_grocery-service_utils_api.Response:
     description: Standard API response structure
     properties:
-      data:
-        description: Contains the response data (if any)
+      data: {}
       error:
-        description: Contains error message (if any)
         example: Invalid request parameters
         type: string
       success:
-        description: Indicates if the request was successful
         example: true
         type: boolean
     type: object

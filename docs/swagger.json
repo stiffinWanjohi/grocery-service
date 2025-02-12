@@ -1717,6 +1717,12 @@
                 "path": {
                     "type": "string"
                 },
+                "sub_categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_grocery-service_internal_domain.Category"
+                    }
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -1918,16 +1924,12 @@
             "description": "Standard API response structure",
             "type": "object",
             "properties": {
-                "data": {
-                    "description": "Contains the response data (if any)"
-                },
+                "data": {},
                 "error": {
-                    "description": "Contains error message (if any)",
                     "type": "string",
                     "example": "Invalid request parameters"
                 },
                 "success": {
-                    "description": "Indicates if the request was successful",
                     "type": "boolean",
                     "example": true
                 }
