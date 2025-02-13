@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: grocery-service
-        image: grocery-service:latest
+        image: gcr.io/grocery-service-project/grocery-service:latest
         resources:
           limits:
             cpu: "500m"
