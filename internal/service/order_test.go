@@ -141,10 +141,13 @@ func TestOrderService_Create(t *testing.T) {
 				}), mock.AnythingOfType("func(context.Context, string, int) error")).
 					Run(func(args mock.Arguments) {
 						callback := args.Get(2).(func(context.Context, string, int) error)
-						callback(
+						err := callback(
 							context.Background(),
 							order.Items[0].ProductID.String(),
 							order.Items[0].Quantity)
+						if err != nil {
+							t.Errorf("callback error: %v", err)
+						}
 					}).Return(nil)
 
 				ns.On(

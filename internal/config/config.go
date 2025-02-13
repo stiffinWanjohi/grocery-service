@@ -59,9 +59,9 @@ type SMTPConfig struct {
 type SMSConfig struct {
 	APIKey      string `env:"SMS_API_KEY"     required:"true"`
 	Username    string `env:"SMS_USERNAME"    required:"true"`
-	SenderID    string `env:"SMS_SENDER_ID"                   default:"GROCERY"`
-	Environment string `env:"SMS_ENVIRONMENT"                 default:"sandbox"`
-	BaseURL     string `env:"SMS_BASE_URL"                    default:"https://api.africastalking.com/version1/messaging"`
+	SenderID    string `env:"SMS_SENDER_ID"   default:"GROCERY"`
+	Environment string `env:"SMS_ENVIRONMENT" default:"sandbox"`
+	BaseURL     string `env:"SMS_BASE_URL"`
 }
 
 type OAuthConfig struct {
@@ -70,10 +70,10 @@ type OAuthConfig struct {
 	RedirectURL       string   `env:"OAUTH_REDIRECT_URL"       required:"true"`
 	AllowedUsers      []string `env:"OAUTH_ALLOWED_USERS"`
 	AllowedDomain     string   `env:"OAUTH_ALLOWED_DOMAIN"`
-	Scopes            []string `env:"OAUTH_SCOPES"                             default:"openid,profile,offline_access,user.read"`
-	ProviderURL       string   `env:"OAUTH_PROVIDER_URL"                       default:"https://login.microsoftonline.com/common"`
-	AuthorizeEndpoint string   `env:"OAUTH_AUTHORIZE_ENDPOINT"                 default:"/oauth2/v2.0/authorize"`
-	TokenEndpoint     string   `env:"OAUTH_TOKEN_ENDPOINT"                     default:"/oauth2/v2.0/token"`
+	Scopes            []string `env:"OAUTH_SCOPES"`
+	ProviderURL       string   `env:"OAUTH_PROVIDER_URL"`
+	AuthorizeEndpoint string   `env:"OAUTH_AUTHORIZE_ENDPOINT"`
+	TokenEndpoint     string   `env:"OAUTH_TOKEN_ENDPOINT"`
 }
 
 func Load() (*Config, error) {
