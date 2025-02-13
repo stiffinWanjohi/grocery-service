@@ -15,8 +15,8 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
           POSTGRES_DB: grocery_test
         ports:
           - 5433:5432
@@ -39,11 +39,36 @@ jobs:
         run: go mod download
 
       - name: Run migrations
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: grocery_test
+          DB_SSLMODE: disable
         run: |
           go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
           migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/grocery_test?sslmode=disable" up
 
       - name: Run tests with coverage
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: grocery_test
+          DB_SSLMODE: disable
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SMTP_HOST: smtp.resend.com
+          SMTP_PORT: 465
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          SMS_API_KEY: ${{ secrets.SMS_API_KEY }}
+          SMS_USERNAME: ${{ secrets.SMS_USERNAME }}
+          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
+          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+          OAUTH_REDIRECT_URL: ${{ secrets.OAUTH_REDIRECT_URL }}
         run: |
           go test -race -coverprofile=coverage.txt -covermode=atomic ./...
           go tool cover -func=coverage.txt
