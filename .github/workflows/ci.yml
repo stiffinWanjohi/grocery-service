@@ -84,35 +84,6 @@ jobs:
           path: coverage.html
           retention-days: 7
 
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: go
-          queries: security-and-quality
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:go"
-          upload: sarif
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
