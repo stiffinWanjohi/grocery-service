@@ -15,7 +15,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: postgres
+          POSTGRES_USER: runner
           POSTGRES_PASSWORD: postgres 
           POSTGRES_DB: grocery_test
         ports:
@@ -43,8 +43,8 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USER: runner
+          DB_PASSWORD: postgres
           DB_NAME: grocery_test
           DB_SSLMODE: disable
         run: |
@@ -55,8 +55,8 @@ jobs:
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USER: runner
+          DB_PASSWORD: postgres
           DB_NAME: grocery_test
           DB_SSLMODE: disable
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
