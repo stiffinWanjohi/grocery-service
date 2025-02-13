@@ -87,25 +87,31 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-latest
-    if: github.repository == 'stiffinWanjohi/grocery-service' && github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     permissions:
+      security-events: write
       actions: read
       contents: read
-      security-events: write
-
+    
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
         with:
-          languages: 'go'
+          languages: go
+          queries: security-and-quality
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v2
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:go"
+          upload: true
 
   lint:
     name: Lint
