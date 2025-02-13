@@ -19,7 +19,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
           POSTGRES_DB: grocery_test
         ports:
-          - 5433:5432
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -41,8 +41,8 @@ jobs:
 
       - name: Run migrations
         env:
-          DB_HOST: localhost
-          DB_PORT: 5433
+          DB_HOST: postgres
+          DB_PORT: 5432
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: grocery_test
@@ -53,8 +53,8 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          DB_HOST: localhost
-          DB_PORT: 5433
+          DB_HOST: postgres
+          DB_PORT: 5432
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: grocery_test
