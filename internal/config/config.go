@@ -59,8 +59,8 @@ type SMTPConfig struct {
 type SMSConfig struct {
 	APIKey      string `env:"SMS_API_KEY"     required:"true"`
 	Username    string `env:"SMS_USERNAME"    required:"true"`
-	SenderID    string `env:"SMS_SENDER_ID"   default:"GROCERY"`
-	Environment string `env:"SMS_ENVIRONMENT" default:"sandbox"`
+	SenderID    string `env:"SMS_SENDER_ID"                   default:"GROCERY"`
+	Environment string `env:"SMS_ENVIRONMENT"                 default:"sandbox"`
 	BaseURL     string `env:"SMS_BASE_URL"`
 }
 
@@ -68,12 +68,11 @@ type OAuthConfig struct {
 	ClientID          string   `env:"OAUTH_CLIENT_ID"          required:"true"`
 	ClientSecret      string   `env:"OAUTH_CLIENT_SECRET"      required:"true"`
 	RedirectURL       string   `env:"OAUTH_REDIRECT_URL"       required:"true"`
-	AllowedUsers      []string `env:"OAUTH_ALLOWED_USERS"`
-	AllowedDomain     string   `env:"OAUTH_ALLOWED_DOMAIN"`
 	Scopes            []string `env:"OAUTH_SCOPES"`
-	ProviderURL       string   `env:"OAUTH_PROVIDER_URL"`
-	AuthorizeEndpoint string   `env:"OAUTH_AUTHORIZE_ENDPOINT"`
-	TokenEndpoint     string   `env:"OAUTH_TOKEN_ENDPOINT"`
+	ProviderURL       string   `env:"OAUTH_PROVIDER_URL"       required:"true"`
+	AuthorizeEndpoint string   `env:"OAUTH_AUTHORIZE_ENDPOINT"                 default:"/authorize"`
+	TokenEndpoint     string   `env:"OAUTH_TOKEN_ENDPOINT"                     default:"/oauth/token"`
+	UserInfoEndpoint  string   `env:"OAUTH_USERINFO_ENDPOINT"                  default:"/userinfo"`
 }
 
 func Load() (*Config, error) {
@@ -132,32 +131,29 @@ func Load() (*Config, error) {
 		OAuth: OAuthConfig{
 			ClientID:     getEnv("OAUTH_CLIENT_ID", ""),
 			ClientSecret: getEnv("OAUTH_CLIENT_SECRET", ""),
-			RedirectURL:  getEnv("OAUTH_REDIRECT_URL", ""),
-			AllowedUsers: getEnvAsStringSlice("OAUTH_ALLOWED_USERS", nil),
-			AllowedDomain: getEnv(
-				"OAUTH_ALLOWED_DOMAIN",
-				"",
+			RedirectURL: getEnv(
+				"OAUTH_REDIRECT_URL",
+				"http://localhost:8080/api/v1/auth/callback",
 			),
 			Scopes: getEnvAsStringSlice(
 				"OAUTH_SCOPES",
 				[]string{
 					"openid",
 					"profile",
-					"offline_access",
-					"user.read",
+					"email",
 				},
 			),
 			ProviderURL: getEnv(
 				"OAUTH_PROVIDER_URL",
-				"https://login.microsoftonline.com/common",
+				"https://dev-vz8le2ezedv7udpb.us.auth0.com",
 			),
 			AuthorizeEndpoint: getEnv(
 				"OAUTH_AUTHORIZE_ENDPOINT",
-				"/oauth2/v2.0/authorize",
+				"/v1/authorize",
 			),
 			TokenEndpoint: getEnv(
 				"OAUTH_TOKEN_ENDPOINT",
-				"/oauth2/v2.0/token",
+				"/v1/token",
 			),
 		},
 	}
@@ -170,10 +166,17 @@ func Load() (*Config, error) {
 }
 
 func LoadTestConfig() (*TestDatabaseConfig, error) {
+	defaultUser := "postgres"
+	defaultPort := 5433
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		defaultUser = "runner"
+		defaultPort = 5432
+	}
+
 	config := &TestDatabaseConfig{
 		Host:     getEnv("TEST_DB_HOST", "localhost"),
-		Port:     getEnvAsInt("TEST_DB_PORT", 5432),
-		User:     getEnv("TEST_DB_USER", "runner"),
+		Port:     getEnvAsInt("TEST_DB_PORT", defaultPort),
+		User:     getEnv("TEST_DB_USER", defaultUser),
 		Password: getEnv("TEST_DB_PASSWORD", "postgres"),
 		Name:     getEnv("TEST_DB_NAME", "grocery_test"),
 		SSLMode:  getEnv("TEST_DB_SSLMODE", "disable"),

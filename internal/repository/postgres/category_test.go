@@ -159,7 +159,11 @@ func TestCategoryRepository_Create(t *testing.T) {
 			// Verify parent exists if ParentID is set
 			if tt.category.ParentID != nil {
 				var parent domain.Category
-				err = postgres.DB.First(&parent, "id = ?", tt.category.ParentID).Error
+				err = postgres.DB.First(
+					&parent,
+					"id = ?",
+					tt.category.ParentID,
+				).Error
 				assert.NoError(t, err)
 				assert.Equal(t, tt.category.Level, parent.Level+1)
 				assert.True(t, len(found.Path) > len(parent.Path))

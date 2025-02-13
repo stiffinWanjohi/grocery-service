@@ -44,18 +44,17 @@ func TestCustomerService_Create(t *testing.T) {
 	}{
 		{
 			name:   "Success - Create New Customer",
-			userID: uuid.New().String(),
+			userID: "google-oauth2|123456789",
 			setupMocks: func(cr *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {
 				user := createTestUser()
-				user.ID = uuid.MustParse(userID)
-				ur.On("GetByID", mock.Anything, userID).Return(user, nil)
-				cr.On("GetByUserID", mock.Anything, userID).
+				ur.On("GetByProviderID", mock.Anything, userID).Return(user, nil)
+				cr.On("GetByUserID", mock.Anything, user.ID.String()).
 					Return(nil, customErrors.ErrCustomerNotFound)
 				cr.On(
 					"Create",
 					mock.Anything,
 					mock.MatchedBy(func(c *domain.Customer) bool {
-						return c.UserID.String() == userID
+						return c.UserID == user.ID
 					})).Return(nil)
 			},
 			expectedError: nil,
@@ -68,24 +67,27 @@ func TestCustomerService_Create(t *testing.T) {
 		},
 		{
 			name:   "Error - User Not Found",
-			userID: uuid.New().String(),
+			userID: "google-oauth2|nonexistent",
 			setupMocks: func(_ *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {
-				ur.On("GetByID", mock.Anything, userID).
+				ur.On("GetByProviderID", mock.Anything, userID).
 					Return(nil, customErrors.ErrUserNotFound)
 			},
 			expectedError: customErrors.ErrUserNotFound,
 		},
 		{
 			name:   "Error - Customer Already Exists",
-			userID: uuid.New().String(),
+			userID: "google-oauth2|existing",
 			setupMocks: func(cr *mocks.CustomerRepository, ur *mocks.UserRepository, userID string) {
 				user := createTestUser()
-				user.ID = uuid.MustParse(userID)
-				ur.On("GetByID", mock.Anything, userID).Return(user, nil)
-				cr.On("GetByUserID", mock.Anything, userID).
-					Return(&domain.Customer{}, nil)
+				ur.On("GetByProviderID", mock.Anything, userID).Return(user, nil)
+				cr.On("GetByUserID", mock.Anything, user.ID.String()).
+					Return(&domain.Customer{
+						ID:     uuid.New(),
+						UserID: user.ID,
+						User:   user,
+					}, nil)
 			},
-			expectedError: customErrors.ErrInvalidCustomerData,
+			expectedError: customErrors.ErrCustomerExists,
 		},
 	}
 
@@ -102,7 +104,7 @@ func TestCustomerService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, customer)
-				assert.Equal(t, tt.userID, customer.UserID.String())
+				assert.NotEmpty(t, customer.ID)
 			}
 		})
 	}

@@ -12,7 +12,6 @@ import (
 
 	"github.com/grocery-service/internal/api"
 	handler "github.com/grocery-service/internal/api/handlers"
-	"github.com/grocery-service/internal/api/middleware"
 	"github.com/grocery-service/internal/config"
 	"github.com/grocery-service/internal/repository/db"
 	"github.com/grocery-service/internal/repository/postgres"
@@ -51,7 +50,7 @@ func main() {
 
 	// Initialize services
 	notificationService := initializeNotificationService(cfg)
-	authService := service.NewAuthService(*cfg, userRepo, tokenRepo)
+	authService := service.NewAuthService(*cfg, userRepo, tokenRepo, []string{})
 	customerService := service.NewCustomerService(customerRepo, userRepo)
 	productService := service.NewProductService(productRepo, categoryRepo)
 	categoryService := service.NewCategoryService(categoryRepo)
@@ -78,15 +77,7 @@ func main() {
 		handlers.productHandler,
 		handlers.categoryHandler,
 		handlers.orderHandler,
-		middleware.AuthConfig{
-			JWTSecret:     cfg.JWT.Secret,
-			Issuer:        cfg.JWT.Issuer,
-			ClientID:      cfg.OAuth.ClientID,
-			ClientSecret:  cfg.OAuth.ClientSecret,
-			RedirectURL:   cfg.OAuth.RedirectURL,
-			AllowedUsers:  cfg.OAuth.AllowedUsers,
-			TokenDuration: cfg.JWT.TokenDuration,
-		},
+		authService,
 	)
 
 	startServer(router, cfg.Server.Port)

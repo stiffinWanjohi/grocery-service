@@ -79,7 +79,11 @@ func (r *CategoryRepositoryImpl) Create(
 						)
 					}
 					category.Level = parent.Level + 1
-					category.Path = fmt.Sprintf("%s/%s", parent.Path, category.Name)
+					category.Path = fmt.Sprintf(
+						"%s/%s",
+						parent.Path,
+						category.Name,
+					)
 				} else {
 					category.Level = 0
 					category.Path = category.Name

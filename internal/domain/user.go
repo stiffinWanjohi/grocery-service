@@ -33,6 +33,7 @@ type UserInfo struct {
 	VerifiedEmail bool   `json:"email_verified"`
 	Name          string `json:"name"`
 	Picture       string `json:"picture"`
+	Role          string `json:"role"`
 }
 
 type AuthResponse struct {

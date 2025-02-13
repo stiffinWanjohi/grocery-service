@@ -56,9 +56,9 @@ docker-logs:
 docker-migrate:
 	docker-compose exec api ./migrate up
 
-docker-reset: docker-down
+docker-reset:
 	docker-compose down -v
-	docker-compose up -d
+	docker-compose up --build
 
 # Installation commands
 install-migrate:

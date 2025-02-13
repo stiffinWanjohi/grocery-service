@@ -24,13 +24,13 @@ func TestNewAuthService(t *testing.T) {
 			ClientSecret: "test-secret",
 			RedirectURL:  "http://localhost:8080/callback",
 			Scopes:       []string{"email", "profile"},
-			AllowedUsers: []string{"test@example.com"},
 		},
 	}
 	service := NewAuthService(
 		cfg,
 		mockUserRepo,
 		mockTokenRepo,
+		[]string{"test@example.com"},
 	)
 	assert.NotNil(t, service)
 }
@@ -50,6 +50,7 @@ func TestGetAuthURL(t *testing.T) {
 		cfg,
 		mockUserRepo,
 		mockTokenRepo,
+		[]string{},
 	)
 	url := service.GetAuthURL()
 	assert.Contains(t, url, "client_id=test-client-id")
@@ -252,6 +253,7 @@ func TestValidateToken(t *testing.T) {
 				cfg,
 				mockUserRepo,
 				mockTokenRepo,
+				[]string{},
 			)
 
 			user, err := service.ValidateToken(
@@ -313,6 +315,7 @@ func TestRevokeToken(t *testing.T) {
 				cfg,
 				mockUserRepo,
 				mockTokenRepo,
+				[]string{},
 			)
 
 			err := service.RevokeToken(ctx, tt.token)

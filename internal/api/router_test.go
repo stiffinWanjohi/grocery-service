@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	handler "github.com/grocery-service/internal/api/handlers"
-	"github.com/grocery-service/internal/api/middleware"
 	"github.com/grocery-service/internal/domain"
 	serviceMock "github.com/grocery-service/tests/mocks/service"
 	"github.com/stretchr/testify/assert"
@@ -38,12 +38,6 @@ func TestNewRouter(t *testing.T) {
 	)
 	orderHandler := handler.NewOrderHandler(orderService)
 
-	authConfig := middleware.AuthConfig{
-		ClientID:     "test-client-id",
-		ClientSecret: "test-client-secret",
-		RedirectURL:  "http://localhost:8080/auth/callback",
-	}
-
 	// Initialize router
 	router := NewRouter(
 		authHandler,
@@ -51,10 +45,8 @@ func TestNewRouter(t *testing.T) {
 		productHandler,
 		categoryHandler,
 		orderHandler,
-		authConfig,
+		authService,
 	)
-
-	// customerID := uuid.New()
 
 	// Test cases for routes
 	tests := []struct {
@@ -69,7 +61,7 @@ func TestNewRouter(t *testing.T) {
 		{
 			name:   "Auth - Login Redirect",
 			method: http.MethodGet,
-			path:   "/auth/login",
+			path:   "/api/v1/auth/login",
 			setupAuth: func(_ *testing.T, service *serviceMock.AuthService) {
 				service.On("GetAuthURL").
 					Return("https://accounts.google.com/o/oauth2/auth")
@@ -79,10 +71,18 @@ func TestNewRouter(t *testing.T) {
 		{
 			name:   "Auth - Callback Success",
 			method: http.MethodGet,
-			path:   "/auth/callback?code=test-code",
+			path:   "/api/v1/auth/callback?code=test-code",
 			setupAuth: func(_ *testing.T, service *serviceMock.AuthService) {
 				service.On("HandleCallback", mock.Anything, "test-code").
-					Return(&domain.AuthResponse{}, nil)
+					Return(&domain.AuthResponse{
+						AccessToken: "test-access-token",
+						User: &domain.User{
+							ID:    uuid.New(),
+							Email: "test@example.com",
+							Name:  "Test User",
+							Role:  domain.CustomerRole,
+						},
+					}, nil)
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -108,36 +108,6 @@ func TestNewRouter(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 		},
-		// {
-		// 	name:   "Protected - Create Product",
-		// 	method: http.MethodPost,
-		// 	path:   "/api/v1/products",
-		// 	setupAuth: func(_ *testing.T, service *serviceMock.AuthService) {
-		// 		service.On("ValidateToken", mock.Anything, "test-token").
-		// 			Return(&domain.User{Role: domain.AdminRole}, nil).
-		// 			Once()
-		// 	},
-		// 	expectedStatus: http.StatusOK,
-		// },
-		// {
-		// 	name:   "Protected - Customer Orders",
-		// 	method: http.MethodGet,
-		// 	path:   "/api/v1/orders/customer/" + customerID.String(),
-		// 	setupAuth: func(_ *testing.T, service *serviceMock.AuthService) {
-		// 		service.On("ValidateToken", mock.Anything, mock.MatchedBy(func(token string) bool {
-		// 			return strings.TrimPrefix(
-		// 				token,
-		// 				"Bearer ",
-		// 			) == "test-token"
-		// 		})).
-		// 			Return(&domain.User{
-		// 				ID:   customerID,
-		// 				Role: domain.CustomerRole,
-		// 			}, nil).
-		// 			Once()
-		// 	},
-		// 	expectedStatus: http.StatusOK,
-		// },
 	}
 
 	for _, tt := range tests {
@@ -198,7 +168,7 @@ func TestRouterMiddleware(t *testing.T) {
 		handler.NewProductHandler(productService),
 		handler.NewCategoryHandler(categoryService),
 		handler.NewOrderHandler(orderService),
-		middleware.AuthConfig{},
+		authService,
 	)
 
 	middlewares := getMiddlewareStack(router)

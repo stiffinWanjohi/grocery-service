@@ -2,7 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/grocery-service/internal/domain"
@@ -41,8 +43,36 @@ func (h *AuthHandler) Login(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	url := h.service.GetAuthURL()
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	// Set content negotiation headers
+	w.Header().Set("Accept", "text/html,application/json")
+
+	// Get the auth URL
+	authURL := h.service.GetAuthURL()
+
+	// Check if it's an API request
+	if r.Header.Get("Accept") == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"auth_url": authURL,
+		}); err != nil {
+			if err := api.ErrorResponse(
+				w,
+				"Failed to encode response",
+				http.StatusInternalServerError,
+			); err != nil {
+				http.Error(
+					w,
+					"Failed to send error response",
+					http.StatusInternalServerError,
+				)
+			}
+			return
+		}
+		return
+	}
+
+	// Otherwise redirect to Auth0
+	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
 
 // @Summary OpenID Connect callback
@@ -74,13 +104,25 @@ func (h *AuthHandler) Callback(
 		return
 	}
 
+	// Log the incoming code
+	fmt.Printf("Received authorization code: %s\n", code)
+
 	authResponse, err := h.service.HandleCallback(r.Context(), code)
 	if err != nil {
-		if err := api.ErrorResponse(
-			w,
-			"Authentication failed",
-			http.StatusUnauthorized,
-		); err != nil {
+		// Log the specific error
+		fmt.Printf("Auth callback error: %v\n", err)
+
+		statusCode := http.StatusUnauthorized
+		message := "Authentication failed"
+
+		// Provide more specific error messages based on the error type
+		if strings.Contains(err.Error(), "failed to exchange token") {
+			message = "Failed to exchange authorization code for token"
+		} else if strings.Contains(err.Error(), "failed to fetch user info") {
+			message = "Failed to fetch user information"
+		}
+
+		if err := api.ErrorResponse(w, message, statusCode); err != nil {
 			http.Error(
 				w,
 				"Failed to send error response",
@@ -90,12 +132,14 @@ func (h *AuthHandler) Callback(
 		return
 	}
 
+	// Log successful authentication
+	fmt.Printf(
+		"Authentication successful for user: %s\n",
+		authResponse.User.Email,
+	)
+
 	if err := api.SuccessResponse(w, authResponse, http.StatusOK); err != nil {
-		if err := api.ErrorResponse(
-			w,
-			"Failed to send response",
-			http.StatusInternalServerError,
-		); err != nil {
+		if err := api.ErrorResponse(w, "Failed to send response", http.StatusInternalServerError); err != nil {
 			http.Error(
 				w,
 				"Failed to send error response",

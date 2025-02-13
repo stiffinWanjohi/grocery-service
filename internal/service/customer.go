@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/grocery-service/internal/domain"
 	repository "github.com/grocery-service/internal/repository/postgres"
 	customErrors "github.com/grocery-service/utils/errors"
@@ -48,7 +49,7 @@ func (s *CustomerServiceImpl) Create(
 		)
 	}
 
-	user, err := s.userRepo.GetByID(ctx, userID)
+	user, err := s.userRepo.GetByProviderID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to find user: %w",
@@ -56,16 +57,18 @@ func (s *CustomerServiceImpl) Create(
 		)
 	}
 
-	existing, err := s.customerRepo.GetByUserID(ctx, userID)
+	existing, err := s.customerRepo.GetByUserID(ctx, user.ID.String())
 	if err == nil && existing != nil {
 		return nil, fmt.Errorf(
 			"%w: customer already exists for this user",
-			customErrors.ErrInvalidCustomerData,
+			customErrors.ErrCustomerExists,
 		)
 	}
 
 	customer := &domain.Customer{
+		ID:     uuid.New(),
 		UserID: user.ID,
+		User:   user,
 	}
 
 	if err := s.customerRepo.Create(ctx, customer); err != nil {

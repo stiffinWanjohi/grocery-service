@@ -82,7 +82,10 @@ func main() {
 	log.Println("Seeding completed successfully")
 }
 
-func seedCategories(ctx context.Context, repo postgres.CategoryRepository) error {
+func seedCategories(
+	ctx context.Context,
+	repo postgres.CategoryRepository,
+) error {
 	categories := []struct {
 		id       uuid.UUID
 		name     string

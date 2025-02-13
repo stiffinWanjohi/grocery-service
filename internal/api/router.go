@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/cors"
 	handler "github.com/grocery-service/internal/api/handlers"
 	customMiddleware "github.com/grocery-service/internal/api/middleware"
+	"github.com/grocery-service/internal/service"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
@@ -19,7 +20,7 @@ func NewRouter(
 	productHandler *handler.ProductHandler,
 	categoryHandler *handler.CategoryHandler,
 	orderHandler *handler.OrderHandler,
-	authConfig customMiddleware.AuthConfig,
+	authService service.AuthService,
 ) *chi.Mux {
 	r := chi.NewRouter()
 
@@ -68,17 +69,17 @@ func NewRouter(
 		httpSwagger.DomID("swagger-ui"),
 	))
 
-	// Auth routes (OpenID Connect endpoints)
-	r.Route("/auth", func(r chi.Router) {
-		r.Get("/login", authHandler.Login)
-		r.Get("/callback", authHandler.Callback)
-		r.Post("/refresh", authHandler.RefreshToken)
-		r.With(customMiddleware.Authentication(authConfig)).
-			Post("/revoke", authHandler.RevokeToken)
-	})
-
 	// API routes
 	r.Route("/api/v1", func(r chi.Router) {
+		// Auth routes (OpenID Connect endpoints)
+		r.Route("/auth", func(r chi.Router) {
+			r.Get("/login", authHandler.Login)
+			r.Get("/callback", authHandler.Callback)
+			r.Post("/refresh", authHandler.RefreshToken)
+			r.With(customMiddleware.Authentication(authService)).
+				Post("/revoke", authHandler.RevokeToken)
+		})
+
 		// Public routes
 		r.Group(func(r chi.Router) {
 			r.Mount("/categories", categoryHandler.Routes())
@@ -91,7 +92,7 @@ func NewRouter(
 
 			// Admin only routes - apply auth first, then admin check
 			r.Group(func(r chi.Router) {
-				r.Use(customMiddleware.Authentication(authConfig))
+				r.Use(customMiddleware.Authentication(authService))
 				r.Use(customMiddleware.RequireAdmin)
 
 				r.Post("/", productHandler.Create)
@@ -101,14 +102,14 @@ func NewRouter(
 
 			// Protected endpoints
 			r.Group(func(r chi.Router) {
-				r.Use(customMiddleware.Authentication(authConfig))
+				r.Use(customMiddleware.Authentication(authService))
 				r.Get("/{id}", productHandler.GetByID)
 			})
 		})
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
-			r.Use(customMiddleware.Authentication(authConfig))
+			r.Use(customMiddleware.Authentication(authService))
 
 			// Customer routes
 			r.Mount("/customers", customerHandler.Routes())

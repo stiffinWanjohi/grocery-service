@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,12 +28,17 @@ type (
 		) (*domain.AuthResponse, error)
 		RevokeToken(ctx context.Context, token string) error
 		ValidateToken(ctx context.Context, token string) (*domain.User, error)
+		GetUserInfo(
+			ctx context.Context,
+			token string,
+		) (*domain.UserInfo, error)
 	}
 
 	authService struct {
 		oauth2Config *oauth2.Config
 		userRepo     repository.UserRepository
 		tokenRepo    repository.TokenRepository
+		providerURL  string
 		allowedUsers []string
 	}
 )
@@ -41,11 +47,13 @@ func NewAuthService(
 	cfg config.Config,
 	userRepo repository.UserRepository,
 	tokenRepo repository.TokenRepository,
+	allowedUsers []string,
 ) AuthService {
 	endpoint := oauth2.Endpoint{
 		AuthURL:  cfg.OAuth.ProviderURL + cfg.OAuth.AuthorizeEndpoint,
 		TokenURL: cfg.OAuth.ProviderURL + cfg.OAuth.TokenEndpoint,
 	}
+
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.OAuth.ClientID,
 		ClientSecret: cfg.OAuth.ClientSecret,
@@ -58,12 +66,17 @@ func NewAuthService(
 		oauth2Config: oauthConfig,
 		userRepo:     userRepo,
 		tokenRepo:    tokenRepo,
-		allowedUsers: cfg.OAuth.AllowedUsers,
+		providerURL:  cfg.OAuth.ProviderURL,
+		allowedUsers: allowedUsers,
 	}
 }
 
 func (s *authService) GetAuthURL() string {
-	return s.oauth2Config.AuthCodeURL("state")
+	return s.oauth2Config.AuthCodeURL(
+		"state",
+		oauth2.SetAuthURLParam("response_type", "code"),
+		oauth2.SetAuthURLParam("audience", s.providerURL+"/api/v2/"),
+	)
 }
 
 func (s *authService) createUserAndTokens(
@@ -145,16 +158,19 @@ func (s *authService) HandleCallback(
 	ctx context.Context,
 	code string,
 ) (*domain.AuthResponse, error) {
+	fmt.Printf("Exchanging code for token: %s\n", code)
+
 	oauth2Token, err := s.oauth2Config.Exchange(ctx, code)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"failed to exchange token: %w",
-			err,
-		)
+		fmt.Printf("Token exchange error: %v\n", err)
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}
 
-	userInfo, err := s.getUserInfo(ctx, oauth2Token)
+	fmt.Printf("Token exchange successful, getting user info\n")
+
+	userInfo, err := s.GetUserInfo(ctx, oauth2Token.AccessToken)
 	if err != nil {
+		fmt.Printf("User info error: %v\n", err)
 		return nil, err
 	}
 
@@ -275,28 +291,31 @@ func (s *authService) ValidateToken(
 	return user, nil
 }
 
-func (s *authService) getUserInfo(
+func (s *authService) GetUserInfo(
 	ctx context.Context,
-	token *oauth2.Token,
+	token string,
 ) (*domain.UserInfo, error) {
-	client := s.oauth2Config.Client(ctx, token)
-	resp, err := client.Get(
-		"https://openidconnect.googleapis.com/v1/userinfo",
-	)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", s.providerURL+"/userinfo", nil)
 	if err != nil {
-		return nil, fmt.Errorf(
-			"failed to get user info: %w",
-			err,
-		)
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user info: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch user info: %d", resp.StatusCode)
+	}
+
 	var userInfo domain.UserInfo
 	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return nil, fmt.Errorf(
-			"failed to decode user info: %w",
-			err,
-		)
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
 	return &userInfo, nil

@@ -148,7 +148,8 @@ func TestOrderService_Create(t *testing.T) {
 						if err != nil {
 							t.Errorf("callback error: %v", err)
 						}
-					}).Return(nil)
+					}).
+					Return(nil)
 
 				ns.On(
 					"SendOrderConfirmation",

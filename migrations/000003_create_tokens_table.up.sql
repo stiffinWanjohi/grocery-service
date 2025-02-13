@@ -1,6 +1,8 @@
 CREATE TABLE tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL,
+    provider_id VARCHAR(255) NOT NULL,
     token TEXT NOT NULL UNIQUE,
     type VARCHAR(20) NOT NULL CHECK (type IN ('access', 'refresh')),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,

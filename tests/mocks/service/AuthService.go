@@ -32,6 +32,36 @@ func (_m *AuthService) GetAuthURL() string {
 	return r0
 }
 
+// GetUserInfo provides a mock function with given fields: ctx, token
+func (_m *AuthService) GetUserInfo(ctx context.Context, token string) (*domain.UserInfo, error) {
+	ret := _m.Called(ctx, token)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserInfo")
+	}
+
+	var r0 *domain.UserInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*domain.UserInfo, error)); ok {
+		return rf(ctx, token)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *domain.UserInfo); ok {
+		r0 = rf(ctx, token)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.UserInfo)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, token)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // HandleCallback provides a mock function with given fields: ctx, code
 func (_m *AuthService) HandleCallback(ctx context.Context, code string) (*domain.AuthResponse, error) {
 	ret := _m.Called(ctx, code)

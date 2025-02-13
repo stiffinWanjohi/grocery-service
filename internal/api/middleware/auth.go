@@ -2,25 +2,18 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"github.com/grocery-service/internal/service"
 )
 
 type AuthConfig struct {
-	JWTSecret     string
-	Issuer        string
-	ClientID      string
-	ClientSecret  string
-	RedirectURL   string
-	AllowedUsers  []string
-	TokenDuration time.Duration
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	Issuer       string // Okta domain, e.g., "https://{yourOktaDomain}/oauth2/default"
 }
 
 type contextKey string
@@ -33,206 +26,98 @@ const (
 	CustomerRole string     = "customer"
 )
 
-type OpenIDConfig struct {
-	oauth2Config *oauth2.Config
-	userInfoURL  string
-}
-
-func newOpenIDConfig(config AuthConfig) *OpenIDConfig {
-	return &OpenIDConfig{
-		oauth2Config: &oauth2.Config{
-			ClientID:     config.ClientID,
-			ClientSecret: config.ClientSecret,
-			RedirectURL:  config.RedirectURL,
-			Scopes: []string{
-				"openid",
-				"profile",
-				"email",
-			},
-			Endpoint: google.Endpoint,
-		},
-		userInfoURL: "https://openidconnect.googleapis.com/v1/userinfo",
-	}
-}
-
 func Authentication(
-	config AuthConfig,
+	authService service.AuthService,
 ) func(http.Handler) http.Handler {
-	oidConfig := newOpenIDConfig(config)
-
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(
-			func(w http.ResponseWriter, r *http.Request) {
-				// Skip auth for OAuth/OpenID endpoints
-				if r.URL.Path == "/auth/callback" ||
-					r.URL.Path == "/auth/login" {
-					next.ServeHTTP(w, r)
-					return
-				}
-
-				// Try JWT authentication first
-				if userCtx, ok := validateJWT(r, config); ok {
-					next.ServeHTTP(w, r.WithContext(userCtx))
-					return
-				}
-
-				// Try OpenID token
-				if userCtx, ok := validateOpenIDToken(r, oidConfig); ok {
-					next.ServeHTTP(w, r.WithContext(userCtx))
-					return
-				}
-
-				http.Error(w, "unauthorized", http.StatusUnauthorized)
-			},
-		)
-	}
-}
-
-func validateJWT(
-	r *http.Request,
-	config AuthConfig,
-) (context.Context, bool) {
-	authHeader := r.Header.Get("Authorization")
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		return nil, false
-	}
-
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-	token, err := jwt.Parse(
-		tokenString,
-		func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf(
-					"unexpected signing method: %v",
-					token.Header["alg"],
-				)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip auth for public endpoints
+			if r.URL.Path == "/api/v1/auth/callback" ||
+				r.URL.Path == "/api/v1/auth/login" {
+				next.ServeHTTP(w, r)
+				return
 			}
 
-			return []byte(config.JWTSecret), nil
-		},
-	)
-
-	if err != nil || !token.Valid {
-		return nil, false
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || claims["iss"] != config.Issuer {
-		return nil, false
-	}
-
-	email, _ := claims["email"].(string)
-	if len(config.AllowedUsers) > 0 {
-		isAllowed := false
-		for _, allowedEmail := range config.AllowedUsers {
-			if email == allowedEmail {
-				isAllowed = true
-				break
-			}
-		}
-
-		if !isAllowed {
-			return nil, false
-		}
-	}
-
-	ctx := context.WithValue(r.Context(), UserIDKey, claims["sub"])
-	ctx = context.WithValue(ctx, UserEmailKey, email)
-	if role, ok := claims["role"].(string); ok {
-		ctx = context.WithValue(ctx, UserRoleKey, role)
-	}
-
-	return ctx, true
-}
-
-func validateOpenIDToken(
-	r *http.Request,
-	config *OpenIDConfig,
-) (context.Context, bool) {
-	authHeader := r.Header.Get("Authorization")
-	if !strings.HasPrefix(authHeader, "OpenID ") {
-		return nil, false
-	}
-
-	tokenString := strings.TrimPrefix(authHeader, "OpenID ")
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", config.userInfoURL, nil)
-	if err != nil {
-		return nil, false
-	}
-
-	req.Header.Set("Authorization", "Bearer "+tokenString)
-	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return nil, false
-	}
-	defer resp.Body.Close()
-
-	var userInfo struct {
-		Sub   string `json:"sub"`
-		Email string `json:"email"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return nil, false
-	}
-
-	ctx := context.WithValue(r.Context(), UserIDKey, userInfo.Sub)
-	ctx = context.WithValue(ctx, UserEmailKey, userInfo.Email)
-
-	return ctx, true
-}
-
-func RequireAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			if r.Context().Value(UserIDKey) == nil {
+			token, err := extractBearerToken(r)
+			if err != nil {
 				http.Error(
 					w,
-					"unauthorized",
+					"unauthorized: missing or malformed token",
 					http.StatusUnauthorized,
 				)
 				return
 			}
 
-			next.ServeHTTP(w, r)
-		},
-	)
+			userInfo, err := authService.GetUserInfo(r.Context(), token)
+			if err != nil {
+				http.Error(
+					w,
+					"unauthorized: invalid token",
+					http.StatusUnauthorized,
+				)
+				return
+			}
+
+			// Add user information to the request context
+			ctx := context.WithValue(r.Context(), UserIDKey, userInfo.ID)
+			ctx = context.WithValue(ctx, UserEmailKey, userInfo.Email)
+			ctx = context.WithValue(ctx, UserRoleKey, userInfo.Role)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func extractBearerToken(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		return "", errors.New("missing or malformed authorization header")
+	}
+	return strings.TrimPrefix(authHeader, "Bearer "), nil
+}
+
+type UserInfo struct {
+	Sub   string      `json:"sub"`
+	Email string      `json:"email"`
+	Role  interface{} `json:"role"` // Customize this based on your Okta claims
+}
+
+func RequireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Context().Value(UserIDKey) == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			role, ok := r.Context().Value(UserRoleKey).(string)
-			if !ok || role != AdminRole {
-				http.Error(
-					w,
-					"forbidden: admin access required",
-					http.StatusForbidden,
-				)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		},
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, ok := r.Context().Value(UserRoleKey).(string)
+		if !ok || role != AdminRole {
+			http.Error(
+				w,
+				"forbidden: admin access required",
+				http.StatusForbidden,
+			)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func RequireCustomer(next http.Handler) http.Handler {
-	return http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
-			role, ok := r.Context().Value(UserRoleKey).(string)
-			if !ok || (role != CustomerRole && role != AdminRole) {
-				http.Error(
-					w,
-					"forbidden: customer access required",
-					http.StatusForbidden,
-				)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		},
-	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, ok := r.Context().Value(UserRoleKey).(string)
+		if !ok || (role != CustomerRole && role != AdminRole) {
+			http.Error(
+				w,
+				"forbidden: customer access required",
+				http.StatusForbidden,
+			)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
