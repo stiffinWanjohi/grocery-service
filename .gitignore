@@ -48,3 +48,5 @@ config.local.yaml
 
 # Binary output directory
 dist/
+
+.secrets
