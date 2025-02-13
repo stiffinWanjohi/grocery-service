@@ -1,5 +1,3 @@
-I'll help you update the README.md file with the project structure and testing information:
-
 ```markdown:/Users/wanjohi/development/go/src/github.com/grocery-service/README.md
 # Grocery Service
 
