@@ -97,6 +97,9 @@ func (s *OrderServiceImpl) Create(
 
 	order.TotalPrice = totalPrice
 	order.Status = domain.OrderStatusPending
+	if order.ID == uuid.Nil {
+		order.ID = uuid.New()
+	}	
 
 	err := s.repo.Create(
 		ctx,

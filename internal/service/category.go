@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/grocery-service/internal/domain"
 	repository "github.com/grocery-service/internal/repository/postgres"
 	customErrors "github.com/grocery-service/utils/errors"
@@ -37,6 +38,18 @@ func (s *CategoryServiceImpl) Create(
 	ctx context.Context,
 	category *domain.Category,
 ) error {
+	if category.ID == uuid.Nil {
+		newCategory := domain.NewCategory(
+			category.Name,
+			category.Description,
+			category.ParentID,
+		)
+		newCategory.Level = category.Level
+		newCategory.Path = category.Path
+
+		*category = *newCategory
+	}
+
 	if err := category.Validate(); err != nil {
 		return fmt.Errorf("%w: %v", customErrors.ErrInvalidCategoryData, err)
 	}

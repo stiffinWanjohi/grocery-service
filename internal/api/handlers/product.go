@@ -28,10 +28,10 @@ func (h *ProductHandler) Routes() chi.Router {
 
 	r.Get("/", h.List)
 	r.Post("/", h.Create)
+	r.Get("/category/{categoryID}", h.ListByCategoryID)
 	r.Get("/{id}", h.GetByID)
 	r.Put("/{id}", h.Update)
 	r.Delete("/{id}", h.Delete)
-	r.Get("/category/{categoryID}", h.ListByCategoryID)
 	r.Put("/{id}/stock", h.UpdateStock)
 
 	return r

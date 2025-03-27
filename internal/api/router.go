@@ -118,7 +118,7 @@ func NewRouter(
 			r.Route("/orders", func(r chi.Router) {
 				// Customer routes
 				r.Group(func(r chi.Router) {
-					r.Use(customMiddleware.RequireCustomer)
+					// r.Use(customMiddleware.RequireCustomer)
 					r.Post("/", orderHandler.Create)
 					r.Get(
 						"/customer/{customer_id}",

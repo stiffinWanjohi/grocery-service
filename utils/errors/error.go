@@ -64,6 +64,7 @@ var (
 	ErrTokenExpired  = errors.New("token has expired")
 	ErrInvalidToken  = errors.New("invalid token")
 	ErrUnauthorized  = errors.New("unauthorized access")
+	ErrForbidden     = errors.New("forbidden access")
 	ErrTokenNotFound = errors.New("token not found")
 	ErrTokenRevoked  = errors.New("token has been revoked")
 

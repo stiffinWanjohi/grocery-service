@@ -28,8 +28,8 @@ func (h *OrderHandler) Routes() chi.Router {
 
 	r.Get("/", h.List)
 	r.Post("/", h.Create)
-	r.Get("/{id}", h.GetByID)
 	r.Get("/customer/{customerID}", h.ListByCustomerID)
+	r.Get("/{id}", h.GetByID)
 	r.Put("/{id}/status", h.UpdateStatus)
 	r.Post("/{id}/items", h.AddOrderItem)
 	r.Delete("/{id}/items/{itemID}", h.RemoveOrderItem)

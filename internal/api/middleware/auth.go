@@ -107,17 +107,17 @@ func RequireAdmin(next http.Handler) http.Handler {
 	})
 }
 
-func RequireCustomer(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		role, ok := r.Context().Value(UserRoleKey).(string)
-		if !ok || (role != CustomerRole && role != AdminRole) {
-			http.Error(
-				w,
-				"forbidden: customer access required",
-				http.StatusForbidden,
-			)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
+// func RequireCustomer(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		role, ok := r.Context().Value(UserRoleKey).(string)
+// 		if !ok || (role != CustomerRole && role != AdminRole) {
+// 			http.Error(
+// 				w,
+// 				"forbidden: customer access required",
+// 				http.StatusForbidden,
+// 			)
+// 			return
+// 		}
+// 		next.ServeHTTP(w, r)
+// 	})
+// }

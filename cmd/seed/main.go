@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/grocery-service/internal/config"
@@ -45,14 +46,54 @@ var (
 	spicesID      = uuid.MustParse("550e8400-e29b-41d4-a716-446655440018")
 	cannedGoodsID = uuid.MustParse("550e8400-e29b-41d4-a716-446655440019")
 	condimentsID  = uuid.MustParse("550e8400-e29b-41d4-a716-446655440020")
-)
 
-type productData struct {
-	name        string
-	description string
-	price       float64
-	stock       int
-}
+	// Product IDs
+	// Fruits
+	bananaID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	appleID  = uuid.MustParse("660e8400-e29b-41d4-a716-446655440002")
+	orangeID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440003")
+
+	// Vegetables
+	carrotID  = uuid.MustParse("660e8400-e29b-41d4-a716-446655440004")
+	tomatoID  = uuid.MustParse("660e8400-e29b-41d4-a716-446655440005")
+	spinachID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440006")
+
+	// Herbs
+	basilID    = uuid.MustParse("660e8400-e29b-41d4-a716-446655440007")
+	cilantroID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440008")
+	mintID     = uuid.MustParse("660e8400-e29b-41d4-a716-446655440009")
+
+	// Milk
+	wholeMilkID   = uuid.MustParse("660e8400-e29b-41d4-a716-446655440010")
+	heavyCreamID  = uuid.MustParse("660e8400-e29b-41d4-a716-446655440011")
+	halfAndHalfID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440012")
+
+	// Cheese
+	cheddarID    = uuid.MustParse("660e8400-e29b-41d4-a716-446655440013")
+	mozzarellaID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440014")
+	swissID      = uuid.MustParse("660e8400-e29b-41d4-a716-446655440015")
+
+	// Yogurt
+	greekYogurtID      = uuid.MustParse("660e8400-e29b-41d4-a716-446655440016")
+	vanillaYogurtID    = uuid.MustParse("660e8400-e29b-41d4-a716-446655440017")
+	strawberryYogurtID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440018")
+
+	// Bread
+	wholeWheatID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440019")
+	sourdoughID  = uuid.MustParse("660e8400-e29b-41d4-a716-446655440020")
+	ryeBreadID   = uuid.MustParse("660e8400-e29b-41d4-a716-446655440021")
+
+	// Pastry
+	croissantsID = uuid.MustParse("660e8400-e29b-41d4-a716-446655440022")
+	danishID     = uuid.MustParse("660e8400-e29b-41d4-a716-446655440023")
+	muffinsID    = uuid.MustParse("660e8400-e29b-41d4-a716-446655440024")
+
+	// User IDs
+	testUserID = uuid.MustParse("880e8400-e29b-41d4-a716-446655440001")
+
+	// Customer IDs
+	testCustomerID = uuid.MustParse("770e8400-e29b-41d4-a716-446655440001")
+)
 
 func main() {
 	cfg, err := config.Load()
@@ -70,6 +111,8 @@ func main() {
 
 	categoryRepo := postgres.NewCategoryRepository(database)
 	productRepo := postgres.NewProductRepository(database)
+	userRepo := postgres.NewUserRepository(database)
+	customerRepo := postgres.NewCustomerRepository(database)
 
 	if err := seedCategories(ctx, categoryRepo); err != nil {
 		log.Fatalf("Failed to seed categories: %v", err)
@@ -77,6 +120,14 @@ func main() {
 
 	if err := seedProducts(ctx, productRepo); err != nil {
 		log.Fatalf("Failed to seed products: %v", err)
+	}
+
+	if err := seedUsers(ctx, userRepo); err != nil {
+		log.Fatalf("Failed to seed users: %v", err)
+	}
+
+	if err := seedCustomers(ctx, customerRepo); err != nil {
+		log.Fatalf("Failed to seed customers: %v", err)
 	}
 
 	log.Println("Seeding completed successfully")
@@ -152,99 +203,104 @@ func seedCategories(
 }
 
 func seedProducts(ctx context.Context, repo postgres.ProductRepository) error {
-	productsData := map[uuid.UUID][]productData{
-		fruitsID: {
-			{"Banana", "Fresh bananas from Ecuador", 0.99, 100},
-			{"Apple", "Red delicious apples", 0.75, 150},
-			{"Orange", "Sweet navel oranges", 1.29, 120},
-		},
-		vegetablesID: {
-			{"Carrot", "Organic carrots", 1.99, 80},
-			{"Tomato", "Vine-ripened tomatoes", 2.49, 90},
-			{"Spinach", "Fresh baby spinach", 3.99, 50},
-		},
-		herbsID: {
-			{"Basil", "Fresh basil leaves", 2.99, 40},
-			{"Cilantro", "Fresh cilantro bunch", 1.99, 45},
-			{"Mint", "Fresh mint leaves", 2.49, 35},
-		},
-		milkID: {
-			{"Whole Milk", "Fresh whole milk, 1 gallon", 3.99, 40},
-			{"Heavy Cream", "Fresh heavy cream", 4.29, 25},
-			{"Half & Half", "Fresh half & half", 3.49, 30},
-		},
-		cheeseID: {
-			{"Cheddar", "Sharp cheddar cheese", 5.99, 30},
-			{"Mozzarella", "Fresh mozzarella", 4.99, 35},
-			{"Swiss", "Swiss cheese", 6.99, 25},
-		},
-		yogurtID: {
-			{"Greek Yogurt", "Plain greek yogurt", 1.99, 45},
-			{"Vanilla Yogurt", "Vanilla flavored yogurt", 2.49, 40},
-			{"Strawberry Yogurt", "Strawberry yogurt", 2.49, 40},
-		},
-		breadID: {
-			{"Whole Wheat", "Whole wheat bread", 3.49, 40},
-			{"Sourdough", "Fresh sourdough loaf", 4.99, 30},
-			{"Rye Bread", "Fresh rye bread", 4.49, 25},
-		},
-		pastryID: {
-			{"Croissants", "Butter croissants, 4 pack", 6.99, 20},
-			{"Danish", "Assorted danish pastries", 5.99, 25},
-			{"Muffins", "Blueberry muffins, 4 pack", 5.99, 30},
-		},
-		cakesID: {
-			{"Chocolate Cake", "Rich chocolate cake", 24.99, 15},
-			{"Cheesecake", "New York style cheesecake", 19.99, 20},
-			{"Cupcakes", "Assorted cupcakes, 6 pack", 8.99, 25},
-		},
-		poultryID: {
-			{"Chicken Breast", "Boneless skinless, per lb", 5.99, 40},
-			{"Turkey", "Ground turkey, per lb", 5.99, 35},
-			{"Chicken Wings", "Fresh chicken wings, per lb", 4.99, 45},
-		},
-		beefID: {
-			{"Ground Beef", "80/20 ground beef, per lb", 6.99, 35},
-			{"Ribeye", "Choice ribeye steak, per lb", 15.99, 20},
-			{"Beef Tenderloin", "Premium tenderloin, per lb", 19.99, 15},
-		},
-		seafoodID: {
-			{"Salmon", "Fresh Atlantic salmon, per lb", 12.99, 25},
-			{"Shrimp", "Large frozen shrimp, 1lb bag", 14.99, 20},
-			{"Cod", "Fresh cod fillet, per lb", 11.99, 30},
-		},
-		spicesID: {
-			{"Black Pepper", "Ground black pepper", 3.99, 85},
-			{"Cinnamon", "Ground cinnamon", 4.99, 70},
-			{"Garlic Powder", "Pure garlic powder", 3.99, 75},
-		},
-		cannedGoodsID: {
-			{"Diced Tomatoes", "Canned diced tomatoes", 1.99, 100},
-			{"Black Beans", "Canned black beans", 1.49, 120},
-			{"Tuna", "Chunk light tuna in water", 1.99, 90},
-		},
-		condimentsID: {
-			{"Mayonnaise", "Classic mayonnaise", 4.99, 60},
-			{"Ketchup", "Tomato ketchup", 3.99, 70},
-			{"Mustard", "Yellow mustard", 2.99, 65},
-		},
+	products := []struct {
+		id          uuid.UUID
+		name        string
+		description string
+		price       float64
+		stock       int
+		categoryID  uuid.UUID
+	}{
+		// Fruits
+		{bananaID, "Banana", "Fresh bananas from Ecuador", 0.99, 100, fruitsID},
+		{appleID, "Apple", "Red delicious apples", 0.75, 150, fruitsID},
+		{orangeID, "Orange", "Sweet navel oranges", 1.29, 120, fruitsID},
+
+		// Vegetables
+		{carrotID, "Carrot", "Organic carrots", 1.99, 80, vegetablesID},
+		{tomatoID, "Tomato", "Vine-ripened tomatoes", 2.49, 90, vegetablesID},
+		{spinachID, "Spinach", "Fresh baby spinach", 3.99, 50, vegetablesID},
+
+		// Herbs
+		{basilID, "Basil", "Fresh basil leaves", 2.99, 40, herbsID},
+		{cilantroID, "Cilantro", "Fresh cilantro bunch", 1.99, 45, herbsID},
+		{mintID, "Mint", "Fresh mint leaves", 2.49, 35, herbsID},
+
+		// Milk
+		{wholeMilkID, "Whole Milk", "Fresh whole milk, 1 gallon", 3.99, 40, milkID},
+		{heavyCreamID, "Heavy Cream", "Fresh heavy cream", 4.29, 25, milkID},
+		{halfAndHalfID, "Half & Half", "Fresh half & half", 3.49, 30, milkID},
+
+		// Cheese
+		{cheddarID, "Cheddar", "Sharp cheddar cheese", 5.99, 30, cheeseID},
+		{mozzarellaID, "Mozzarella", "Fresh mozzarella", 4.99, 35, cheeseID},
+		{swissID, "Swiss", "Swiss cheese", 6.99, 25, cheeseID},
+
+		// Yogurt
+		{greekYogurtID, "Greek Yogurt", "Plain greek yogurt", 1.99, 45, yogurtID},
+		{vanillaYogurtID, "Vanilla Yogurt", "Vanilla flavored yogurt", 2.49, 40, yogurtID},
+		{strawberryYogurtID, "Strawberry Yogurt", "Strawberry yogurt", 2.49, 40, yogurtID},
+
+		// Bread
+		{wholeWheatID, "Whole Wheat", "Whole wheat bread", 3.49, 40, breadID},
+		{sourdoughID, "Sourdough", "Fresh sourdough loaf", 4.99, 30, breadID},
+		{ryeBreadID, "Rye Bread", "Fresh rye bread", 4.49, 25, breadID},
+
+		// Pastry
+		{croissantsID, "Croissants", "Butter croissants, 4 pack", 6.99, 20, pastryID},
+		{danishID, "Danish", "Assorted danish pastries", 5.99, 25, pastryID},
+		{muffinsID, "Muffins", "Blueberry muffins, 4 pack", 5.99, 30, pastryID},
 	}
 
-	for categoryID, products := range productsData {
-		for _, p := range products {
-			product := &domain.Product{
-				ID:          uuid.New(),
-				Name:        p.name,
-				Description: p.description,
-				Price:       p.price,
-				Stock:       p.stock,
-				CategoryID:  categoryID,
-			}
-
-			if err := repo.Create(ctx, product); err != nil {
-				return err
-			}
+	for _, p := range products {
+		product := &domain.Product{
+			ID:          p.id,
+			Name:        p.name,
+			Description: p.description,
+			Price:       p.price,
+			Stock:       p.stock,
+			CategoryID:  p.categoryID,
 		}
+
+		if err := repo.Create(ctx, product); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func seedUsers(ctx context.Context, repo postgres.UserRepository) error {
+	testUser := &domain.User{
+		ID:        testUserID,
+		Email:     "wanjohisteve04@gmail.com",
+		Password:  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy", // password: test123
+		Name:      "Test User",
+		Phone:     "+254706595191",
+		Address:   "123 Test Street, Test City, 12345",
+		Picture:   "",
+		Role:      domain.CustomerRole,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := repo.Create(ctx, testUser); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func seedCustomers(ctx context.Context, repo postgres.CustomerRepository) error {
+	testCustomer := &domain.Customer{
+		ID:        testCustomerID,
+		UserID:    testUserID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := repo.Create(ctx, testCustomer); err != nil {
+		return err
 	}
 
 	return nil
